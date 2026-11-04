@@ -153,11 +153,14 @@ func _physics_process(delta: float) -> void:
 	running = false
 	mouse_controls.tick(delta)
 	prop_handling.tick(delta)
-	if combat.buffered_fight > 0.0 and (busy > 0.0 or seated or equipment.is_active() or dialogue.is_open or is_instance_valid(carried_cup) or is_instance_valid(grabbed_furniture) or is_instance_valid(held_prop) or office.edit_mode != office.EditMode.SELECT):
+	if combat.buffered_fight > 0.0 and (busy > 0.0 or seated or equipment.is_active() or dialogue.is_open or is_instance_valid(carried_cup) or is_instance_valid(grabbed_furniture) or (is_instance_valid(held_prop) and not combat.has_bat()) or office.edit_mode != office.EditMode.SELECT):
 		combat.buffered_fight = 0.0
 	if gameplay_visible and OfficeInput.is_pressed("fight") and not combat.is_busy() and combat.cooldown <= 0.0 and combat.buffered_fight <= 0.0:
 		try_attack("light")
 	if combat.tick(delta):
+		# Combat can move or turn the player without going through normal carry
+		# movement. Keep the equipped bat with the player during those reactions.
+		if combat.has_bat(): held_prop.global_transform = BaseballBat.held_pose(self)
 		equipment.cancel("Activity interrupted by combat.")
 		if dialogue.is_open: dialogue.close()
 		status_label.text = "YOU • " + combat.status().to_upper()
@@ -234,6 +237,7 @@ func _physics_process(delta: float) -> void:
 	if not prop_handling.follow_held():
 		global_transform = before_motion
 		velocity = Vector3.ZERO
+		prop_handling.follow_held()
 	var moved := global_position.distance_squared_to(before_motion.origin) > 0.000001
 	running = running and moved
 	if running: status_label.text = "YOU • RUNNING"
@@ -281,7 +285,7 @@ func _update_nearby() -> void:
 		prompt.text = "Finishing your interaction…"
 	elif is_instance_valid(grabbed_furniture):
 		nearby = grabbed_furniture
-		prompt.text = "Moving " + grabbed_furniture.item_title + " • WASD toward/away to push/pull • B / F to release"
+		prompt.text = "Moving " + grabbed_furniture.item_title + " • WASD to move in any direction • B / F to release"
 	elif seated:
 		nearby = sitting_chair
 		prompt.text = "[F] Stand up"
@@ -368,8 +372,16 @@ func get_context_actions() -> Array[Dictionary]:
 	if equipment.is_active():
 		actions.append({"id": "cancel_activity", "key": OfficeInput.key_name("interact"), "label": "Cancel"})
 		return actions
+	if is_instance_valid(office.levels):
+		var level_action: String = office.levels._action_kind()
+		if level_action in ["drink", "coffee", "give"]:
+			actions.append({"id": "level_" + level_action, "key": OfficeInput.key_name("interact"), "label": {"drink": "Drink coffee", "coffee": "Get coffee", "give": "Give coffee"}[level_action]})
+			return actions
 	if is_instance_valid(held_prop):
 		if not prop_handling.is_locked():
+			if combat.has_bat():
+				actions.append({"id": "bat_light", "key": OfficeInput.key_name("fight"), "label": "Swing bat"})
+				actions.append({"id": "bat_heavy", "key": OfficeInput.key_name("heavy_attack"), "label": "Smash"})
 			actions.append({"id": "prop_throw", "key": OfficeInput.key_name("prop"), "label": "Throw", "hint": "Tap to throw; hold to charge and aim with the mouse."})
 			actions.append({"id": "prop_place", "key": OfficeInput.key_name("place"), "label": "Place gently"})
 		return actions
@@ -453,7 +465,7 @@ func _refresh_context_display() -> void:
 	if nearby is FurnitureItem:
 		title = nearby.item_title
 	elif nearby is OfficeWorker:
-		title = nearby.worker_name
+		title = nearby.worker_name + (" · Boss" if nearby.is_boss else "")
 	elif is_instance_valid(nearby):
 		title = "Water cup"
 	if anchor is PhysicsProp: title = anchor.prop_title
@@ -462,7 +474,7 @@ func _refresh_context_display() -> void:
 func perform_context_action(action_id: String, expected_target: Node3D) -> void:
 	# Moving people and furniture may invalidate a circle between draw and click.
 	_update_nearby()
-	if action_id.begins_with("prop_"):
+	if action_id.begins_with("prop_") or action_id.begins_with("bat_"):
 		var expected_prop := held_prop if is_instance_valid(held_prop) else nearby_prop
 		if expected_target != expected_prop: return
 		var legal := false
@@ -473,6 +485,8 @@ func perform_context_action(action_id: String, expected_target: Node3D) -> void:
 			"prop_throw": throw_prop()
 			"prop_place": place_prop()
 			"prop_pickup": try_pickup_prop()
+			"bat_light": try_attack("light", true)
+			"bat_heavy": try_attack("heavy", true)
 		_update_nearby()
 		return
 	if action_id != "drop" and expected_target != nearby:
@@ -482,6 +496,10 @@ func perform_context_action(action_id: String, expected_target: Node3D) -> void:
 		if action.id == action_id:
 			allowed = true
 	if not allowed:
+		return
+	if action_id.begins_with("level_"):
+		office.levels.perform_action()
+		_update_nearby()
 		return
 	if action_id.begins_with("eq_"):
 		equipment.perform(action_id, nearby as FurnitureItem)
@@ -759,13 +777,13 @@ func try_grab_furniture() -> bool:
 	play_anim("grip")
 	office._notify_workers_furniture_changed(item, false)
 	status_label.text = "YOU • MOVING FURNITURE"
-	message.text = "Walk toward the object to push, or away to pull. B / F releases it."
+	message.text = "Use WASD to move the object in any direction. B / F releases it."
 	_update_nearby()
 	return true
 
 func _process_furniture_move(direction: Vector3, delta: float) -> void:
-	var amount := direction.dot(grab_axis)
-	if absf(amount) < 0.15:
+	var horizontal := Vector3(direction.x, 0.0, direction.z).limit_length(1.0)
+	if horizontal.length_squared() < 0.0225:
 		velocity = Vector3.ZERO
 		nav_agent.velocity = Vector3.ZERO
 		furniture_motion = "grip"
@@ -774,7 +792,8 @@ func _process_furniture_move(direction: Vector3, delta: float) -> void:
 	var item := grabbed_furniture
 	var area := item.footprint_size.x * item.footprint_size.z
 	var speed := clampf(1.1 - area * 0.035, 0.45, 1.05)
-	var motion := grab_axis * amount * speed * delta
+	var amount := horizontal.dot(grab_axis)
+	var motion := horizontal * speed * delta
 	var steps := maxi(1, ceili(motion.length() / 0.04))
 	var step := motion / float(steps)
 	var moved := Vector3.ZERO
@@ -792,9 +811,9 @@ func _process_furniture_move(direction: Vector3, delta: float) -> void:
 		moved += step
 	velocity = moved / maxf(delta, 0.001)
 	nav_agent.velocity = velocity
-	furniture_motion = ("push" if amount > 0.0 else "pull") if moved.length_squared() > 0.000001 else "grip"
+	furniture_motion = ("pull" if amount < -0.15 else "push") if moved.length_squared() > 0.000001 else "grip"
 	play_anim(furniture_motion)
-	message.text = blocked if not blocked.is_empty() else ("Pushing " if amount > 0.0 else "Pulling ") + item.item_title + " • B / F to release"
+	message.text = blocked if not blocked.is_empty() else "Moving " + item.item_title + " • B / F to release"
 
 func _can_move_with_furniture(motion: Vector3, item: FurnitureItem) -> bool:
 	var next := global_position + motion
@@ -842,20 +861,21 @@ func try_attack(kind: String = "auto", buffer_input := false) -> bool:
 	if busy > 0.0 or seated or equipment.is_active() or dialogue.is_open:
 		message.text = "Stand up and finish your interaction to fight."
 		return false
-	if is_instance_valid(carried_cup) or is_instance_valid(grabbed_furniture) or is_instance_valid(held_prop):
+	if prop_handling.is_locked(): return false
+	if is_instance_valid(carried_cup) or is_instance_valid(grabbed_furniture) or (is_instance_valid(held_prop) and not combat.has_bat()):
 		message.text = "Free your hands first: G puts down the cup; B releases furniture; T throws a prop."
 		return false
 	if office.edit_mode != office.EditMode.SELECT:
 		message.text = "Finish or cancel furniture placement to fight."
 		return false
 	if (combat.request_fight(kind) if buffer_input and kind in ["auto", "light", "heavy"] else combat.start_attack(kind)):
-		message.text = "Next strike queued." if combat.buffered_fight > 0.0 else "Tap to chain attacks. Heavy attacks have longer reach and windup."
+		message.text = "Next strike queued." if combat.buffered_fight > 0.0 else ("Bat ready: light swings chain; heavy attack smashes down." if combat.has_bat() else "Tap to chain attacks. Heavy attacks have longer reach and windup.")
 		return true
 	return false
 
 func _update_combat_hint() -> void:
 	var opponent := combat.locked_target()
-	if not is_instance_valid(opponent): opponent = combat.find_target(OfficeCombat.KICK_REACH)
+	if not is_instance_valid(opponent): opponent = combat.find_target(1.85 if combat.has_bat() else OfficeCombat.KICK_REACH)
 	if combat.phase == OfficeCombat.Phase.ATTACK and is_instance_valid(combat.strike_target):
 		opponent = combat.strike_target
 	var show: bool = gameplay_visible and not office.editor_visible and office.edit_mode == office.EditMode.SELECT and not dialogue.is_open and not equipment.is_active() and (is_instance_valid(opponent) or combat.is_busy() or combat.stance_time > 0.0 or combat.departure_notice_time > 0.0)
@@ -866,7 +886,7 @@ func _update_combat_hint() -> void:
 		var warning := opponent.combat.phase == OfficeCombat.Phase.ATTACK and opponent.combat.phase_time < float(opponent.combat.current_move().contact)
 		combat_target_marker.scale = Vector3.ONE * (1.0 + 0.12 * sin(elapsed * 20.0) if warning else 1.0)
 	if not show: return
-	var text := "%s  Light  •  %s  Heavy  •  %s" % [OfficeInput.key_name("fight"), OfficeInput.key_name("heavy_attack"), "Move to circle or dodge" if is_instance_valid(combat.target) else "Face or aim at a target"]
+	var text := ("BAT  •  %s  Swing  •  %s  Smash  •  %s" if combat.has_bat() else "%s  Light  •  %s  Heavy  •  %s") % [OfficeInput.key_name("fight"), OfficeInput.key_name("heavy_attack"), "Move to circle or dodge" if is_instance_valid(combat.target) else "Face or aim at a target"]
 	if is_instance_valid(opponent):
 		text += "\n%s%s  •  Health %d  •  Balance %d" % ["LOCKED · " if combat.target == opponent else "", opponent.worker_name, ceili(opponent.combat.health), maxi(0, ceili(opponent.combat.balance))]
 		if combat.target == opponent: text += "  •  Retreat to disengage"
@@ -884,7 +904,7 @@ func _update_combat_hint() -> void:
 func interrupt_for_combat() -> void:
 	if is_instance_valid(mouse_controls): mouse_controls.cancel()
 	if is_instance_valid(prop_handling):
-		prop_handling.place_gently(true)
+		if not combat.has_bat(): prop_handling.place_gently(true)
 		prop_handling.reset()
 	if is_instance_valid(dialogue): dialogue.close()
 	if is_instance_valid(equipment):

@@ -15,6 +15,11 @@ const ACTIONS: Array[Dictionary] = [
 	{"id": "rotate_left", "label": "Rotate camera left", "default": KEY_Q},
 	{"id": "rotate_right", "label": "Rotate camera right", "default": KEY_E},
 ]
+const RESERVED_KEYS := [
+	KEY_NONE, KEY_ESCAPE, KEY_P, KEY_W, KEY_A, KEY_S, KEY_D,
+	KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SHIFT,
+	KEY_F5, KEY_F9, KEY_EQUAL, KEY_MINUS, KEY_KP_ADD, KEY_KP_SUBTRACT,
+]
 
 static var _bindings: Dictionary = {}
 
@@ -60,9 +65,10 @@ static func apply_bindings(stored: Dictionary) -> void:
 static func reset_bindings() -> void:
 	_bindings = sanitized({})
 
-# Keeps only known actions bound to usable keys. Esc stays reserved for
-# pause/cancel, and a key already claimed by an earlier action is not
-# handed to a second one.
+static func is_reserved(keycode: int) -> bool:
+	return RESERVED_KEYS.has(keycode)
+
+# Keep fixed controls available and avoid assigning a key to two actions.
 static func sanitized(stored: Dictionary) -> Dictionary:
 	var normalized: Dictionary = {}
 	for stored_key in stored:
@@ -72,7 +78,7 @@ static func sanitized(stored: Dictionary) -> Dictionary:
 	for action in ACTIONS:
 		var id := String(action["id"])
 		var keycode := int(normalized.get(id, int(action["default"])))
-		if keycode == KEY_NONE or keycode == KEY_ESCAPE or claimed.has(keycode):
+		if is_reserved(keycode) or claimed.has(keycode):
 			keycode = int(action["default"])
 		if claimed.has(keycode):
 			# A newly added default may already be used by an older saved binding.

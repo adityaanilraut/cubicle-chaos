@@ -1,9 +1,13 @@
 class_name OfficeArrival
 extends RefCounted
 
+const OfficeDetails = preload("res://scripts/office_details.gd")
+
 # An eight-meter extension gives public arrival its own footprint. The 2.4 m
 # entrance and security portals share a straight, protected east-west route.
 const ENTRANCE := Vector3(20, 0, 7)
+# One step inside keeps the arrival arch from covering the player’s head.
+const PLAYER_SPAWN := ENTRANCE + Vector3(-1.35, 0, 0)
 const SECURITY := Vector3(13, 0, 7)
 const DOORWAYS := [
 	Rect2(12.0, 5.8, 9.0, 2.4), # Arrival route, including the exterior landing
@@ -62,6 +66,7 @@ static func build_architecture(office: Node3D, parent: Node3D) -> void:
 	office._add_room_sign(wing, "STAFF / SECURITY", SECURITY + Vector3(0, 2.75, 0), color)
 	office._add_room_sign(wing, "06 / VISITOR MEETING", Vector3(16.5, 2.65, -2), color)
 	office._add_room_sign(wing, "07 / IT SUPPORT", Vector3(16.5, 2.65, 12), color)
+	OfficeDetails.safety_station(wing, Vector3(13.12, 1.15, 10.0), PI * 0.5)
 	# A subdued sage runner and chevrons make the arrival path legible.
 	var runner := ModernAssets.material("arrival_runner", Color(0.64, 0.68, 0.56))
 	ModernAssets.box(wing, Vector3(6.6, 0.014, 1.6), Vector3(16.6, 0.008, 7), runner)
@@ -104,6 +109,7 @@ static func furnish(office: Node3D) -> void:
 		["bookcase", Vector3(14.0, 0, -9.1), 0.0],
 		["potted_plant", Vector3(19.1, 0, -9.1), 0.0],
 		["whiteboard", Vector3(14.0, 0, -3.5), PI * 0.5],
+		["chair_desk", Vector3(18.6, 0, -3.6), PI], # A free seat for the player
 		# IT support has desks and storage, separate from the server aisle.
 		["tech_workbench", Vector3(16.5, 0, 18.7), PI],
 		["desk_pc", Vector3(14.2, 0, 14.3), 0.0],

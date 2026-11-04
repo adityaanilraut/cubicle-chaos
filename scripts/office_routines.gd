@@ -24,8 +24,8 @@ func _physics_process(delta: float) -> void:
 	_meeting_check_timer -= delta
 	for id in social_sessions.keys():
 		var session: Dictionary = social_sessions[id]
-		var a: OfficeWorker = session["a"]
-		var b: OfficeWorker = session["b"]
+		var a = session["a"]
+		var b = session["b"]
 		if not is_instance_valid(a) or not is_instance_valid(b) or a.is_queued_for_deletion() or b.is_queued_for_deletion():
 			finish_social(id, false)
 			continue

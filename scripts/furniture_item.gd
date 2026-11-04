@@ -209,7 +209,7 @@ func is_in_use() -> bool:
 	for worker in get_tree().get_nodes_in_group("combatants"):
 		if worker is OfficePlayer and worker.seated and worker.sitting_chair == self:
 			return true
-		if worker.is_seated and (worker.assigned_chair == self or worker.assigned_desk == self):
+		if worker.is_seated and (worker.assigned_chair == self or worker.assigned_desk == self or (is_instance_valid(worker.meeting) and worker.target_furniture == self)):
 			return true
 	return false
 

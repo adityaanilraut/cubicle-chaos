@@ -73,6 +73,10 @@ static func _build_meshes(skeleton: Skeleton3D) -> void:
 	_part(parts, "OfficeDetails", "Spine2", Vector3(0, 0.012, 0.11), Vector3(0.13, 0.055, 0.025))
 	_part(parts, "OfficeTrousers", "Spine1", Vector3(0, 0.055, 0.13), Vector3(0.026, 0.19, 0.018))
 	for side in ["Left", "Right"]:
+		# Rounded joints soften the silhouette and bridge articulated sections.
+		_part(parts, "OfficeOutfit", side + "Arm", Vector3.ZERO, Vector3(0.14, 0.14, 0.14), true)
+		_part(parts, "OfficeOutfit", side + "ForeArm", Vector3.ZERO, Vector3(0.115, 0.115, 0.12), true)
+		_part(parts, "OfficeTrousers", side + "Leg", Vector3.ZERO, Vector3(0.13, 0.13, 0.15), true)
 		_part(parts, "OfficeOutfit", side + "Arm", Vector3(0, -0.135, 0.005), Vector3(0.13, 0.28, 0.14))
 		_part(parts, "OfficeOutfit", side + "ForeArm", Vector3(0, -0.10, 0.005), Vector3(0.105, 0.22, 0.115))
 		_part(parts, "OfficeSkin", side + "Hand", Vector3(0, -0.042, 0), Vector3(0.075, 0.085, 0.045), true)

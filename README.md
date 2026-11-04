@@ -4,7 +4,7 @@ Clock in. Rearrange the office. Cause a little chaos.
 
 A playable 3D office sandbox made with Godot 4.7 (tested with 4.7.2), developed for the [Meta Global AI Developer Hackathon](https://dev.meta.ai/events/global-hackathon), October 26–November 4, 2026. Meta **Muse Code** helped write and refine the game during development.
 
-![Cubicle Chaos office gameplay](docs/gameplay.png)
+![Cubicle Chaos office gameplay](assets/screenshots/gameplay.png)
 
 ## Meta hackathon project
 
@@ -20,17 +20,17 @@ The implementation includes:
 - A furniture editor with placement checks, rotation, and room customization.
 - Physical props, charged throws, combat, and material-specific destruction.
 - Procedural character geometry, animations, visual effects, and synthesized sound.
-- Two playable levels, an optional introduction, and keyboard-and-mouse controls.
+- Five playable levels, an optional introduction, and keyboard-and-mouse controls.
 
 ### Prototype status
 
-This is a hackathon prototype. Levels 3–5 are placeholders, and mobile touch controls are not implemented. The November 2, 2026 review successfully built a fresh Web export; 25 of 33 regression suites passed, eight failed, and one failing suite also reported a shutdown object leak. See [known issues](docs/KNOWN_ISSUES.md) for the affected areas.
+This is a hackathon prototype. Mobile touch controls are not implemented. Run `bash tools/run_tests.sh` to check the current build.
 
 ## Quick start
 
 1. Install Godot 4.7.2.
 2. Open `project.godot` and run the main scene.
-3. Choose **Start level 1**. Move with **WASD**, interact with **F**, pick up or throw with **T**, and place objects with **G**.
+3. Choose **Start level 1** to arrive at the east entrance, facing reception and staff security. Move with **WASD**, interact with **F**, pick up or throw with **T**, and place objects with **G**.
 
 For a browser build, follow [Run in a web browser](#run-in-a-web-browser) below.
 
@@ -40,7 +40,7 @@ The original game code, project icon, procedural character model, skeleton, anim
 
 Characters and animation keyframes are generated directly in Godot by `OfficeCharacter`, `OfficeAnimations`, and `PlayerAnimations`. No external character downloads, FBX files, motion-capture clips, or Adobe account are required. The character design is intentionally simple and stylized. The generated rig supports the existing walking, sitting, typing, social, equipment, grip, combat, knockdown, and recovery systems.
 
-![Original procedural characters and animations](docs/original-characters.png)
+![Original procedural characters and animations](assets/screenshots/original-characters.png)
 
 Choose **Credits & licenses** on the level menu to read the project, asset, engine, and built-in-library notices. The Web export also includes the notice files.
 
@@ -71,9 +71,9 @@ This is a keyboard-and-mouse web build. Phone touch controls are not implemented
 
 The game opens on a level menu with a frozen office behind it. **Start level 1** begins the shift. The short, optional introduction asks you to move and talk to a coworker; choose **Skip** to dismiss it, or **Replay introduction** on the level menu to see it again. It remembers completion or skipping on this device in `user://office_intro.cfg`.
 
-**Esc / P** returns to the level menu and pauses the simulation. Choose **Continue level** to resume the current shift. Esc first cancels an active furniture placement or releases grabbed furniture. Leaving the game window also pauses the simulation.
+**Esc / P** opens the pause menu and pauses the simulation. Choose **Continue level** to resume the current shift or **Return to level menu** to leave it. Esc first cancels an active furniture placement or releases grabbed furniture. Leaving the game window also pauses the simulation.
 
-Level 1 asks you to drink coffee, talk to a coworker, and move a box to its marked spot. Finishing unlocks level 2, with a server repair and coffee delivery. Levels 3–5 are placeholders. Selecting a level starts its checklist over.
+Level 1 asks you to drink coffee, talk to a coworker, and move a box to its marked spot. If the box breaks, a replacement appears. Level 2 adds a server repair and coffee delivery. Levels 3–5 introduce report filing, collaboration, and wellbeing activities. Complete each checklist to unlock the next level; selecting a level starts its checklist over. Activity objectives count actions performed after the level starts.
 
 Open **Settings** from the level menu or editor toolbar. Lighting, worker labels, nearby action hints, shadows, simulation speed, camera distance, simultaneous breaks, and stand-up spacing apply immediately and save to `user://office_settings.cfg`. Settings keep the office paused. **Restore defaults** resets these preferences.
 
@@ -86,20 +86,20 @@ Under **Accessibility** in Settings you can also set the **interface size** (80�
 - **Middle mouse drag:** pan the camera. **Shift + middle drag:** rotate. **Mouse wheel:** zoom. Panning keeps an offset while the camera follows the player; **Edit office > Reset view** clears it.
 - **WASD / arrows:** walk.
 - **Hold Shift + WASD / arrows:** run, with a faster stride, lifted knees, and swinging arms. The run animation stops when a wall blocks movement. Carrying a cup or prop keeps you walking; furniture keeps its push/pull pace.
-- **Esc / P:** return to the level menu and pause. Choose **Continue level** to resume. Esc first cancels charged throwing, furniture placement, or a furniture grab.
+- **Esc / P:** pause the game. Choose **Continue level** to resume. Esc first cancels charged throwing, furniture placement, or a furniture grab.
 - **F:** use the primary nearby action, talk, sit/stand, or cancel an equipment activity.
 - **H:** use the second available equipment action.
-- **Conversations:** automatic emoji exchanges appear above whoever is speaking. There are no topic menus or reply choices. **F** ends the chat early; **Esc** returns to the level menu.
+- **Conversations:** automatic emoji exchanges appear above whoever is speaking. There are no topic menus or reply choices. **F** or **Esc** ends the chat early.
 - **G:** gently place a carried prop or cup on a reachable clear table or desk, with a floor fallback. Props are placed without throw velocity or spin. **F** also places the cup when the table is highlighted, and picks it back up afterward.
-- **J:** light attack. Tap to chain quick punches and palms, or hold to repeat. **K:** heavy attack, choosing a longer-reaching kick with a longer windup. Face a coworker or hold right mouse to aim at one; the orange ring marks your target. The first strike locks that person for the fight, including while they are down or beyond striking reach. Use movement keys to circle or backpedal while facing them; cursor aim and nearby bystanders cannot steal the lock. Retreat beyond seven meters to disengage. Late taps of either attack are buffered. Free your hands and stand up first.
+- **J:** light attack. Tap to chain quick punches and palms, or hold to repeat. **K:** heavy attack, choosing a longer-reaching kick with a longer windup. Face a coworker or hold right mouse to aim at one; the orange ring marks your target. The first strike locks that person for the fight, including while they are down or beyond striking reach. Use movement keys to circle or backpedal while facing them; cursor aim and nearby bystanders cannot steal the lock. Retreat beyond seven meters to disengage. Late taps of either attack are buffered. Stand up first. Free your hands for unarmed combat, or keep the baseball bat equipped to swing it.
 - **T:** pick up a nearby loose prop (book, box, plant, laptop, radio, speaker, keyboard, bear, or monitor). Tap T again for a quick throw; hold T to charge, aim with the mouse, and release T to throw. A gold trajectory, contact marker, and charge percentage appear while charging. The throw automatically locks onto the nearest coworker in the aimed direction, marked by a gold ring and name; if nobody is in front, it follows your aim. Walls and furniture can block the throw, and distant targets may be beyond the object’s range. Esc cancels aim; pausing cancels charge without dropping the prop. Props are real rigid bodies: they roll, stack, topple, and smash things. Heavier props slow carrying and have shorter throws. Both hands reach toward the object during pickup, carry, windup, and release.
-- **B:** grab nearby furniture with both hands. Walk toward the object to push, or away from it to pull. Press **B**, **F**, or **Esc** to release.
-- **F5 / F9:** save / load the current shift during play. Furniture, props, worker positions, player state, and work stats are restored. The current level, checklist and unlocks are not included in shift saves.
+- **B:** grab nearby furniture with both hands. Use **WASD / arrows** to move it in any direction, including sideways and diagonally. Press **B**, **F**, or **Esc** to release.
+- **F5 / F9:** save / load the current shift during play. Furniture, props, worker positions, player state, work stats, the active level, checklist, and unlocks are restored. Older saves without level data keep the current level.
 - **Q / E:** rotate the camera. Scroll to zoom.
 
 Nearby objects and people have a **white outline and floor border**. **Circular action buttons** show the available shortcuts; click a circle or press its key. Options respect reach, walls, occupied chairs, busy animations, and free hands.
 
-Stand close to an object's edge to grab it. Put down the cup first, and wait for coworkers to leave an occupied workstation. Larger furniture moves more slowly. Furniture and the player stop at obstructions; pushing and pulling use forward/backward steps with hands reaching toward the object.
+Stand close to an object's edge to grab it. Put down the cup first, and wait for coworkers to leave an occupied workstation. Larger furniture moves more slowly. Furniture and the player move together and stop at obstructions, with hands reaching toward the object.
 
 Karate forward stances and open-palm kung fu guards flow into each strike and linger briefly afterward. Each move has its own windup, limb path, reach, damage, and balance impact. Release J to stop after the current strike and walk away to dodge. A short break resets the move sequence. The combat display shows the target’s health and balance and warns of incoming attacks during their windup.
 
@@ -111,11 +111,17 @@ Knockdowns blend from the interrupted pose into a bent-knee landing and a still 
 
 Missed swings and thrown props can smash every furniture and loose prop type, including desks, chairs, tables, workstations, partitions, rugs, appliances and bathroom fixtures. Occupied and grabbed furniture can break too: workers release lost seats and assignments, player activities cancel, furniture grips release and cups on destroyed tables return to the floor. All sound is synthesized in code with a Sound toggle in Settings; no audio files are downloaded. Coworkers vary by hair style and color, glasses, and outfit shade. Coworkers have their own interests and use short, lighthearted lines with emojis.
 
+## Baseball bat
+
+A wooden baseball bat is beside the east staff-security entrance. Pick it up with **T** or click it, then use **J** for alternating forehand/backhand swings and **K** for an overhead smash. Hold right mouse to aim; **G** places it and **T** throws it. The bat stays in your hands during attacks and can strike active coworkers, furniture and loose props. Walls stop swings. NPC knockback uses Jolt rigid-body impulses with the existing animated falls and recovery. Breaks now include an impact pulse, a directional debris plume and fading fragments.
+
+See [the animation plan](docs/BAT_ANIMATION_PLAN.md) for timings, the physics approach and the next animation passes.
+
 ## Physics and material destruction
 
 Pickup checks distance, line of sight, and room for the entire lift. Held props use swept volume checks, including turns, against furniture and walls. A throw starts at the checked held position. Props cannot be carried together with a cup or a furniture grab. G checks the whole prop footprint on tables, including clutter and round edges; an obstructed placement keeps the object in hand. Knockdowns safely release carried objects, and temporary owner collision exceptions prevent immediate self-hits.
 
-Every active furniture and loose prop type has an explicit debris family: 56 types across 17 families, with a mixed-material fallback for future objects. Plants produce curved pot shards, tables produce panels and legs, storage produces shelves, electronics produce casing and circuitry, seating produces cushions and frames, cardboard produces panels and flaps, and books produce covers and pages. Additional families cover workstations, metal fixtures, soft toys, glass, ceramic fixtures, appliances, partitions, textiles, office chairs and masonry. Every type can take damage and break into its family parts; monitors also have cracked, flickering displays. See [DEBRIS_FAMILIES.md](DEBRIS_FAMILIES.md) for all assignments and the visual preview.
+Every active furniture and loose prop type has an explicit debris family: 57 types across 18 families, with a mixed-material fallback for future objects. Plants produce curved pot shards, tables produce panels and legs, storage produces shelves, electronics produce casing and circuitry, seating produces cushions and frames, cardboard produces panels and flaps, and books produce covers and pages. Additional families cover workstations, metal fixtures, soft toys, glass, ceramic fixtures, appliances, partitions, textiles, office chairs and masonry. Every type can take damage and break into its family parts; monitors also have cracked, flickering displays. See [DEBRIS_FAMILIES.md](DEBRIS_FAMILIES.md) for all assignments and the visual preview.
 
 Incoming contact speed, relative motion, mass, and material resistance determine impact damage. Slow settling is harmless, and per-pair cooldowns prevent a multi-point collision from applying damage repeatedly. Props also take damage when hitting walls or floors. Thrown objects can stagger or knock down coworkers through the existing combat and recovery system; soft toys have reduced effects. Ceramic, wood, electronics, metal, fabric, cardboard, paper, glass, plastic and masonry each have distinct synthesized impact and break sounds. Individual components use their own material physics and finish, including soft cushions, metal frames and translucent glass.
 
@@ -143,7 +149,7 @@ Walk close enough to see an equipment object's white outline, then use its circu
 
 Bathroom activities require empty hands and reserve the fixture until finished. **F / Esc** cancels and returns you outside; returning to the level menu also cancels the activity. Only the fixture's collision is bypassed during use, and blocked entrances prevent entry. Saving during bathroom use stores your entrance position so loading places you outside the fixture.
 
-Replenishment cooldowns prevent repeated instant breaks. Equipment progress is included in shift saves; dialogue visits and level progress last for the current running session. **F5** saves the shift and **F9** reloads it.
+Replenishment cooldowns prevent repeated instant breaks. Equipment and level progress are included in shift saves; dialogue visits last for the current running session. **F5** saves the shift and **F9** reloads it.
 
 ## Arrival and data center
 
@@ -192,7 +198,13 @@ Workers spend longer, staggered periods at their personal desks. Thirst, fatigue
 
 Coworkers also choose social breaks. Two consenting participants reserve fixed, reachable meeting positions, leave their desks in turn, exchange visible speech, then return to their own work. They do not chase each other. Combat, blocked meeting positions, deleted participants, and timeouts cancel both sides safely.
 
-Talking to a coworker starts a short automatic exchange in speech bubbles. Alex loves lists, Maya tends plants, Jordan makes art, Sam thinks about coffee and snacks, Taylor enjoys books, and Morgan tackles technical problems. Repeated visits cycle through different lines and matched replies; other hires have their own rotating greetings. Coworkers also meet and chat with each other automatically, trading jokes about office life. There are no dialogue choices: each speaker takes a turn, then the bubbles disappear. Press **F** to end a player conversation early; **Esc** returns to the level menu and closes it.
+The visitor meeting room north of reception hosts a live team briefing. Casey presents four changing slides with animated charts while Riley and Jamie watch from their seats, take notes, raise their hands to ask questions, and applaud. The presenter answers the audience in alternating speech bubbles. You can talk to the participants, watch the briefing at its screen, or sit in an open chair. Combat or removing the screen/table interrupts the meeting safely; saving and loading preserves active participants.
+
+Alex is the boss in the executive office, with a navy suit, gold tie, visible boss nameplate, and team-focused conversations. Maya and Jordan meet for an early chat in the entrance lobby. Coworkers at desks also read notes and stretch between typing.
+
+New activities include **Check in** at reception, **Brainstorm** at a whiteboard (leaving visible shared ideas), **Watch briefing** at a presentation screen, and **Stretch break** beside lounge seating. These timed actions use the usual circular controls and restore focus or balance where appropriate.
+
+Talking to a coworker starts a short automatic exchange in speech bubbles. Alex leads the team, Maya tends plants, Jordan makes art, Sam thinks about coffee and snacks, Taylor enjoys books, and Morgan tackles technical problems. Repeated visits cycle through different lines and matched replies; other hires have their own rotating greetings. Coworkers also meet and chat with each other automatically, trading jokes about office life. There are no dialogue choices: each speaker takes a turn, then the bubbles disappear. Press **F** or **Esc** to end a player conversation early.
 
 Seated coworkers remain seated; standing coworkers pause their route. Approach from a reachable side and press **F** or choose **Talk**. The bundled Noto Emoji font keeps symbols available in the web export (license in `assets/fonts/OFL.txt`).
 
@@ -215,40 +227,13 @@ test_profile="$(mktemp -d)"
 export HOME="$test_profile" XDG_DATA_HOME="$test_profile/data" XDG_CONFIG_HOME="$test_profile/config"
 ```
 
-Then use the Godot executable available on your system:
+Then run an individual suite with the Godot executable available on your system, for example:
 
 ```sh
 godot --headless --path . --script res://tests/office_regression.gd
-godot --headless --path . --script res://tests/chair_regression.gd
-godot --headless --path . --script res://tests/combat_regression.gd
-godot --headless --path . --script res://tests/combat_controls_regression.gd
-godot --headless --path . --script res://tests/fight_flow_regression.gd
-godot --headless --path . --script res://tests/martial_arts_regression.gd
-godot --headless --path . --script res://tests/recovery_animation_regression.gd
-godot --headless --path . --script res://tests/npc_routines_regression.gd
-godot --headless --path . --script res://tests/interaction_regression.gd
-godot --headless --path . --script res://tests/seated_cup_regression.gd
-godot --headless --path . --script res://tests/menu_regression.gd
-godot --headless --path . --script res://tests/social_regression.gd
-godot --headless --path . --script res://tests/natural_social_regression.gd
-godot --headless --path . --script res://tests/dialogue_regression.gd
-godot --headless --path . --script res://tests/intro_conversation_regression.gd
-godot --headless --path . --script res://tests/equipment_regression.gd
-godot --headless --path . --script res://tests/player_actions_regression.gd
-godot --headless --path . --script res://tests/context_integration_regression.gd
-godot --headless --path . --script res://tests/modularization_regression.gd
-godot --headless --path . --script res://tests/new_systems_regression.gd
-godot --headless --path . --script res://tests/prop_handling_regression.gd
-godot --headless --path . --script res://tests/throw_target_regression.gd
-godot --headless --path . --script res://tests/mouse_controls_regression.gd
-godot --headless --path . --script res://tests/material_destruction_regression.gd
-godot --headless --path . --script res://tests/prop_impact_regression.gd
-godot --headless --path . --script res://tests/prop_save_regression.gd
-godot --headless --path . --script res://tests/expansion_regression.gd
-godot --headless --path . --script res://tests/theme_regression.gd
-godot --headless --path . --script res://tests/floor_regression.gd
-godot --headless --path . --script res://tests/accessibility_regression.gd
 ```
+
+The runner discovers all `tests/*_regression.gd` suites automatically.
 
 The checks exercise placement and rotation restrictions, move cancellation, push/pull movement and collision, interaction reservations, and complete worker routines without teleporting.
 Chair checks cover real player and coworker movement against empty and occupied chairs, routes around rotated chairs, and complete sitting and standing cycles with clear exits.

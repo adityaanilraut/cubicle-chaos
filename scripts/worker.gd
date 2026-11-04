@@ -33,6 +33,10 @@ enum BreakPhase {
 const MOVE_SPEED := 1.85
 const TURN_SPEED := 10.0
 
+var is_boss := false
+var meeting_role := ""
+var meeting: OfficeLife
+var _work_elapsed := 0.0
 var worker_name: String = "Alex"
 var worker_index: int = 0
 var state: State = State.IDLE
@@ -264,6 +268,8 @@ func get_state_name() -> String:
 		return combat.status()
 	if is_instance_valid(player_conversation_partner):
 		return "Talking with you"
+	if is_instance_valid(meeting):
+		return "Presenting the team briefing" if meeting_role == "presenter" else "Watching the presentation"
 	if social_session_id != 0 and _social_departure_pending:
 		return "Working · chat queued" if is_seated else "Waiting to meet coworker"
 	if social_session_id != 0 and _social_arrived:
@@ -317,7 +323,7 @@ func get_state_name() -> String:
 
 func _update_label() -> void:
 	if status_label:
-		status_label.text = "%s (%s)\n[%s]" % [worker_name, get_desk_badge(), get_state_name()]
+		status_label.text = "%s%s (%s)\n[%s]" % [worker_name, " · BOSS" if is_boss else "", get_desk_badge(), get_state_name()]
 
 func _on_seated_prop_entered(body: Node3D) -> void:
 	if not is_seated or not collision_shape.disabled or not body is PhysicsProp:
@@ -351,6 +357,8 @@ func _physics_process(delta: float) -> void:
 				var direction := player_conversation_partner.global_position - global_position
 				rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), minf(delta * 8.0, 1.0))
 			return
+	if is_instance_valid(meeting) and meeting.tick_worker(self, delta):
+		return
 	if _social_departure_pending:
 		_process_social_departure()
 		return
@@ -393,6 +401,7 @@ func _physics_process(delta: float) -> void:
 			_process_break(delta)
 
 func _enter_idle(duration: float = 1.4) -> void:
+	if is_instance_valid(meeting): meeting.release_participant(self)
 	_release_routine()
 	if nav_agent:
 		nav_agent.avoidance_enabled = true
@@ -622,6 +631,7 @@ func _process_sitting(delta: float) -> void:
 		_enter_working()
 
 func _enter_working() -> void:
+	_work_elapsed = float(worker_index) * 1.7
 	nav_agent.velocity = Vector3.ZERO
 	nav_agent.avoidance_enabled = false
 	if collision_shape:
@@ -633,7 +643,7 @@ func _enter_working() -> void:
 	play_anim("typing")
 	_update_label()
 
-func _process_working(_delta: float) -> void:
+func _process_working(delta: float) -> void:
 	if not is_instance_valid(target_chair):
 		_force_stand_and_idle()
 		return
@@ -641,6 +651,9 @@ func _process_working(_delta: float) -> void:
 	global_position = target_chair.get_seat_world_pos()
 	rotation.y = target_chair.global_rotation.y
 
+	_work_elapsed += delta
+	var fidget := fmod(_work_elapsed, 22.0)
+	play_anim("read_notes" if fidget < 3.0 else "seated_stretch" if fidget < 5.5 else "typing")
 	if state_timer <= 0.0:
 		_start_break_from_work()
 
@@ -889,6 +902,7 @@ func _force_stand_and_idle() -> void:
 	_enter_idle(0.8)
 
 func interrupt_for_combat() -> void:
+	if is_instance_valid(meeting): meeting.release_participant(self)
 	if is_instance_valid(player_conversation_partner):
 		end_player_conversation(player_conversation_partner)
 	_release_routine()

@@ -50,6 +50,7 @@ func _run() -> void:
 		worker.nav_agent.avoidance_enabled = false
 		worker.global_position = Vector3(-11, 0, 8)
 	player.global_position = Vector3(2, 0, 5)
+	player.rotation.y = 0.0 # Face the fixture after spawning facing into the entrance.
 	var coworker: OfficeWorker = office.workers_container.get_child(1)
 	coworker.global_position = player.global_position + Vector3(0, 0, 0.9)
 	await settle()

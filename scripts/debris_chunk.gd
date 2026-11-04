@@ -43,6 +43,8 @@ func setup(size: Vector3, color: Color, velocity: Vector3, part_mesh: Mesh = nul
 	add_child(_mesh_instance)
 	linear_velocity = velocity
 	angular_velocity = Vector3(randf_range(-6.0, 6.0), randf_range(-6.0, 6.0), randf_range(-6.0, 6.0))
+	if material_id in ["paper", "fabric", "cardboard"]:
+		angular_velocity *= 1.8 # Light fragments flutter as the plume trails off.
 	linear_damp = properties.damp
 	angular_damp = maxf(1.1, float(properties.damp))
 
@@ -51,6 +53,7 @@ func _process(delta: float) -> void:
 	if age > lifetime - 0.8:
 		var weight := clampf((lifetime - age) / 0.8, 0.0, 1.0)
 		_mesh_instance.scale = Vector3.ONE * maxf(weight, 0.01)
+		_mesh_instance.transparency = 1.0 - weight
 	if age > 2.0 and linear_velocity.length_squared() < 0.04:
 		sleeping = true
 	if age >= lifetime:

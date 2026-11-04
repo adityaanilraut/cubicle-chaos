@@ -11,7 +11,10 @@ const CLIPS := {
 	"type_to_sit": [0.85, false], "sit_to_stand": [2.05, false],
 	"sitting_idle": [3.2, true], "drink": [3.2, true],
 	"watercooler": [3.2, true], "talk": [3.2, true],
-	"talk2": [3.2, true], "wave": [2.4, false], "stretch": [3.2, true]
+	"talk2": [3.2, true], "wave": [2.4, false], "stretch": [3.2, true],
+	"present": [4.0, true], "listen": [3.6, true], "read_notes": [3.2, true],
+	"raise_hand": [3.0, true], "applaud": [2.4, true], "seated_stretch": [3.2, true],
+	"brainstorm": [3.2, true]
 }
 
 static func build_library() -> AnimationLibrary:
@@ -38,7 +41,7 @@ static func build_library() -> AnimationLibrary:
 static func _pose(skeleton: Skeleton3D, kind: String, t: float) -> void:
 	skeleton.reset_bone_poses()
 	var phase := t * TAU
-	var seated := 1.0 if kind in ["sitting_idle", "typing", "sit_to_type", "type_to_sit"] else 0.0
+	var seated := 1.0 if kind in ["sitting_idle", "typing", "sit_to_type", "type_to_sit", "listen", "read_notes", "raise_hand", "applaud", "seated_stretch"] else 0.0
 	if kind == "stand_to_sit": seated = smoothstep(0.12, 0.90, t)
 	if kind == "sit_to_stand": seated = 1.0 - smoothstep(0.08, 0.90, t)
 	var hips := skeleton.find_bone(OfficeCharacter.PREFIX + "Hips")
@@ -46,6 +49,8 @@ static func _pose(skeleton: Skeleton3D, kind: String, t: float) -> void:
 	var breath := sin(phase) * (0.012 if kind == "idle_breath" else 0.006)
 	PlayerAnimations._rotate(skeleton, "Spine", Vector3.RIGHT, breath + (0.08 if kind in ["lean", "typing"] else 0.0))
 	PlayerAnimations._rotate(skeleton, "Head", Vector3.UP, 0.035 * sin(phase))
+	if kind == "listen": PlayerAnimations._rotate(skeleton, "Head", Vector3.RIGHT, 0.08 * sin(phase))
+	if kind == "read_notes": PlayerAnimations._rotate(skeleton, "Head", Vector3.RIGHT, 0.23)
 	for side in ["Left", "Right"]:
 		var sign_x := 1.0 if side == "Left" else -1.0
 		var foot := Vector3(sign_x * 0.105, 0.105, 0.0).lerp(Vector3(sign_x * 0.13, 0.105, 0.40), seated)
@@ -69,6 +74,18 @@ static func _pose(skeleton: Skeleton3D, kind: String, t: float) -> void:
 		if kind == "wave" and side == "Right":
 			var lift := sin(PI * t)
 			hand = hand.lerp(Vector3(-0.40 + 0.09 * sin(phase * 3), 1.88, 0.12), lift)
+		if kind == "present":
+			hand = Vector3(sign_x * (0.40 + 0.10 * sin(phase)), 1.18 + 0.20 * sin(phase + sign_x), 0.29)
+		if kind == "read_notes":
+			hand = Vector3(sign_x * 0.16, 0.91 + 0.015 * sin(phase), 0.30)
+		if kind == "raise_hand" and side == "Right":
+			hand = hand.lerp(Vector3(-0.27, 1.70, 0.12), 0.75 + 0.25 * sin(phase))
+		if kind == "applaud":
+			hand = Vector3(sign_x * (0.045 + 0.10 * (0.5 + 0.5 * sin(phase * 4.0))), 1.05, 0.35)
+		if kind == "seated_stretch":
+			hand = hand.lerp(Vector3(sign_x * 0.35, 1.65, 0.05), sin(PI * t))
+		if kind == "brainstorm" and side == "Right":
+			hand = Vector3(-0.14 + 0.14 * sin(phase * 2.0), 1.40 + 0.09 * cos(phase * 3.0), 0.55)
 		if kind == "stretch":
 			var lift := 0.5 - 0.5 * cos(phase)
 			hand = hand.lerp(Vector3(sign_x * 0.27, 1.95, 0.02), lift)

@@ -13,6 +13,10 @@ func _ready() -> void:
 	add_to_group("combat_impacts")
 	name = "KickContact" if kind == "kick" else "PunchContact"
 	var color := Color(0.25, 0.85, 1.0) if kind == "kick" else Color(1.0, 0.65, 0.16)
+	if kind == "prop": color = Color(1.0, 0.38, 0.28)
+	if kind == "bat":
+		name = "BatContact"
+		color = Color(1.0, 0.86, 0.48)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = color
@@ -30,6 +34,20 @@ func _ready() -> void:
 	ring.rotation.x = PI * 0.5
 	ring.material_override = material
 	burst.add_child(ring)
+	# A bright center and a second ring make even quick contacts legible.
+	var core := MeshInstance3D.new()
+	var core_mesh := SphereMesh.new()
+	core_mesh.radius = 0.09
+	core_mesh.height = 0.18
+	core.mesh = core_mesh
+	core.material_override = material
+	burst.add_child(core)
+	var outer := MeshInstance3D.new()
+	outer.mesh = torus
+	outer.rotation.x = PI * 0.5
+	outer.scale = Vector3.ONE * 1.45
+	outer.material_override = material
+	burst.add_child(outer)
 	for i in range(8):
 		var ray := MeshInstance3D.new()
 		var mesh := BoxMesh.new()

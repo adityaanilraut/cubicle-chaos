@@ -28,6 +28,7 @@ var buffered_kind := "auto"
 const INPUT_BUFFER := 0.28
 const COMBO_WINDOW := 1.6
 const STANCE_TIME := 2.4
+const STRIKE_ACTIVE_TIME := 0.05
 var phase_time := 0.0
 var cooldown := 0.0
 var invulnerable := 0.0
@@ -41,6 +42,8 @@ var last_attack_hit := false
 var knockback := Vector3.ZERO
 var pose: CombatPose
 var trail: CombatTrail
+var bat_strike: BatStrike
+var hit_motion: HitMotion
 var is_player := false
 var player_knockdowns := 0
 var recovery_attacker: OfficeWorker
@@ -63,6 +66,11 @@ func setup(character: OfficeWorker) -> void:
 	trail = CombatTrail.new()
 	trail.combat = self
 	actor.add_child(trail)
+	bat_strike = BatStrike.new(self)
+	actor.add_child(bat_strike)
+	hit_motion = HitMotion.new()
+	actor.add_child(hit_motion)
+	hit_motion.setup(actor)
 
 func is_down() -> bool:
 	return phase == Phase.FALLEN or phase == Phase.GETTING_UP
@@ -74,6 +82,7 @@ func is_engaged() -> bool:
 	return is_busy() or is_instance_valid(target)
 
 func reset() -> void:
+	if is_instance_valid(hit_motion): hit_motion.stop()
 	phase = Phase.READY
 	phase_time = 0.0
 	target = null
@@ -118,6 +127,17 @@ func face_locked_target(delta: float) -> bool:
 		actor.rotation.y = lerp_angle(actor.rotation.y, atan2(direction.x, direction.z), minf(delta * 12.0, 1.0))
 	return true
 
+func _in_strike_arc(offset: Vector3, facing: Vector3, other: OfficeWorker) -> bool:
+	# Check the target's body, not only its center. At close range a shoulder
+	# can be in the strike arc even when the center is just outside it.
+	var distance := offset.length()
+	if distance <= 0.05: return true
+	var radius := 0.0
+	if is_instance_valid(other.collision_shape) and other.collision_shape.shape is CapsuleShape3D:
+		radius = (other.collision_shape.shape as CapsuleShape3D).radius
+	var allowance := asin(clampf(radius / distance, 0.0, 1.0))
+	return facing.dot(offset / distance) >= cos(acos(0.40) + allowance)
+
 func can_contact(other: OfficeWorker, reach: float, check_facing := true) -> bool:
 	if not is_instance_valid(other) or other.is_queued_for_deletion() or other == actor or other.combat.is_down() or other.combat.phase == Phase.FLEEING:
 		return false
@@ -125,7 +145,7 @@ func can_contact(other: OfficeWorker, reach: float, check_facing := true) -> boo
 	offset.y = 0.0
 	if offset.length() > reach:
 		return false
-	if check_facing and offset.length() > 0.05 and actor.global_basis.z.dot(offset.normalized()) < 0.40:
+	if check_facing and not _in_strike_arc(offset, actor.global_basis.z, other):
 		return false
 	# Static furniture/walls and other people block the contact line.
 	var ray := PhysicsRayQueryParameters3D.create(actor.global_position + Vector3.UP * 1.05, other.global_position + Vector3.UP * 1.05, 1 | 4, [actor.get_rid(), other.get_rid()])
@@ -152,7 +172,7 @@ func find_target(reach: float, check_facing := false) -> OfficeWorker:
 				var aim := player.mouse_controls.aim_point - actor.global_position
 				aim.y = 0.0
 				if aim.length_squared() > 0.01: facing = aim.normalized()
-			if direction.length_squared() > 0.01 and direction.normalized().dot(facing) < 0.4: continue
+			if not _in_strike_arc(direction, facing, other): continue
 			# Prefer the direction of aim, then distance.
 			current += (1.0 - direction.normalized().dot(facing)) * 0.8
 		if current < distance:
@@ -163,11 +183,14 @@ func find_target(reach: float, check_facing := false) -> OfficeWorker:
 func current_move() -> Dictionary:
 	return CombatMoves.get_move(move_id)
 
+func has_bat() -> bool:
+	return is_player and is_instance_valid((actor as OfficePlayer).held_prop) and (actor as OfficePlayer).held_prop.prop_id == "baseball_bat"
+
 func has_fighting_pose() -> bool:
 	if phase == Phase.FLEEING: return false
 	if is_player:
 		var player := actor as OfficePlayer
-		if player.seated or player.busy > 0.0 or is_instance_valid(player.carried_cup) or is_instance_valid(player.grabbed_furniture) or is_instance_valid(player.held_prop) or player.equipment.is_active() or player.dialogue.is_open:
+		if player.seated or player.busy > 0.0 or is_instance_valid(player.carried_cup) or is_instance_valid(player.grabbed_furniture) or (is_instance_valid(player.held_prop) and not has_bat()) or player.equipment.is_active() or player.dialogue.is_open:
 			return false
 	if is_engaged(): return true
 	if stance_time <= 0.0: return false
@@ -180,7 +203,8 @@ func request_fight(requested_kind := "auto") -> bool:
 	# One late tap is remembered; early mashing cannot queue a whole fight.
 	var remaining := maxf(cooldown, float(current_move().duration) - phase_time) if phase == Phase.ATTACK else cooldown
 	if phase in [Phase.ATTACK, Phase.READY] and remaining <= INPUT_BUFFER:
-		buffered_fight = INPUT_BUFFER
+		# Keep the input through the first eligible tick, including a long frame.
+		buffered_fight = remaining + INPUT_BUFFER
 		buffered_kind = requested_kind
 		return true
 	return false
@@ -188,12 +212,13 @@ func request_fight(requested_kind := "auto") -> bool:
 func start_attack(attack_kind: String) -> bool:
 	if is_busy() or cooldown > 0.0:
 		return false
+	if attack_kind.begins_with("bat_") and not has_bat(): return false
 	var automatic := attack_kind in ["auto", "light", "heavy"]
 	var selected := CombatMoves.resolve_id(attack_kind)
 	if not automatic and CombatMoves.get_move(selected).is_empty():
 		return false
 	var opponent: OfficeWorker
-	var search_reach := (1.25 if attack_kind == "light" else KICK_REACH) if automatic else float(CombatMoves.get_move(selected).reach)
+	var search_reach := (1.85 if has_bat() else (1.25 if attack_kind == "light" else KICK_REACH)) if automatic else float(CombatMoves.get_move(selected).reach)
 	if is_instance_valid(locked_target()):
 		opponent = target
 	else:
@@ -208,6 +233,7 @@ func start_attack(attack_kind: String) -> bool:
 		# Choose an appropriate kick when the next hand strike cannot reach.
 		if attack_kind == "auto" and is_instance_valid(opponent) and actor.global_position.distance_to(opponent.global_position) > float(CombatMoves.get_move(selected).reach):
 			selected = CombatMoves.LONG_RANGE[combo_step % CombatMoves.LONG_RANGE.size()]
+		if has_bat(): selected = "bat_overhead" if attack_kind == "heavy" else CombatMoves.BAT_LIGHT_SEQUENCE[combo_step % CombatMoves.BAT_LIGHT_SEQUENCE.size()]
 		combo_step += 1
 	move_id = selected
 	var move := current_move()
@@ -218,7 +244,13 @@ func start_attack(attack_kind: String) -> bool:
 		target = opponent
 		var direction := opponent.global_position - actor.global_position
 		actor.rotation.y = atan2(direction.x, direction.z)
-	actor.interrupt_for_combat()
+	if kind == "bat":
+		var player := actor as OfficePlayer
+		player.mouse_controls.cancel()
+		player.prop_handling.reset()
+		bat_strike.begin()
+	else:
+		actor.interrupt_for_combat()
 	phase = Phase.ATTACK
 	phase_time = 0.0
 	cooldown = move.cooldown
@@ -233,28 +265,30 @@ func start_attack(attack_kind: String) -> bool:
 		actor._update_label()
 	return true
 
-func _resolve_contact() -> void:
-	# Resolve once at the strike frame, so walking away during windup dodges it.
+func _resolve_contact() -> bool:
+	# Retry during the extended pose, but apply damage only once per strike.
 	if not is_instance_valid(strike_target):
-		_hit_environment()
-		return
+		strike_target = find_target(float(current_move().reach), true)
+		if not is_instance_valid(strike_target):
+			return false
 	var victim := strike_target
 	if not can_contact(victim, float(current_move().reach), true):
-		_hit_environment()
-		return
+		return false
 	last_attack_hit = victim.combat.receive_hit(actor, move_id)
 	if last_attack_hit:
 		revenge_pending = false
 		OfficeAudio.play_at(actor.get_tree(), "kick" if kind == "kick" else "punch")
-		var effect := IMPACT_SCENE.instantiate() as CombatImpact
-		effect.kind = kind
-		effect.move_label = current_move().label
-		effect.top_level = true
-		actor.add_child(effect)
-		effect.global_position = victim.global_position + Vector3.UP * float(current_move().height)
-		effect.global_rotation.y = actor.global_rotation.y
-	else:
-		_hit_environment()
+		_spawn_contact(victim.global_position.lerp(actor.global_position, 0.22) + Vector3.UP * float(current_move().height), kind, current_move().label)
+	return last_attack_hit
+
+func _spawn_contact(point: Vector3, contact_kind: String, label: String) -> void:
+	var effect := IMPACT_SCENE.instantiate() as CombatImpact
+	effect.kind = contact_kind
+	effect.move_label = label
+	effect.top_level = true
+	actor.add_child(effect)
+	effect.global_position = point
+	effect.global_rotation.y = actor.global_rotation.y
 
 func _environment_visible(body: CollisionObject3D, point: Vector3) -> bool:
 	# Test the path to the actual object, ignoring only the attacker and candidate.
@@ -306,14 +340,37 @@ func receive_hit(attacker: OfficeWorker, attack_kind: String) -> bool:
 	hit_side = 1.0 if incoming.side == "Left" else -1.0
 	return _apply_hit(float(incoming.damage), float(incoming.balance), float(incoming.push), direction, attacker, 0.30)
 
+func receive_bat_hit(source: OfficeWorker, move: Dictionary, velocity: Vector3, point: Vector3) -> bool:
+	if not is_instance_valid(source) or move.is_empty() or move.get("family", "") != "bat": return false
+	var relative := velocity - actor.velocity
+	var speed := clampf(relative.length(), 5.0, 24.0)
+	var power := clampf(speed / 12.0, 0.65, 1.35)
+	hit_height = clampf(point.y - actor.global_position.y, 0.3, 1.65)
+	hit_side = 1.0 if source.global_basis.x.dot(relative) > 0.0 else -1.0
+	if not _apply_hit(float(move.damage) * power, float(move.balance) * power, 0.0, relative, source, 0.30): return false
+	# Effective swing mass includes the two-handed grip; reduced mass limits
+	# transfer into the 72 kg body. J = (1 + restitution) * reduced_mass * v.
+	var effective_mass := 9.5 if move.heavy else 6.5
+	var reduced_mass := effective_mass * hit_motion.mass / (effective_mass + hit_motion.mass)
+	var horizontal := Vector3(relative.x, 0, relative.z).normalized()
+	if horizontal.length_squared() < 0.01: horizontal = source.global_basis.z
+	var impulse := horizontal * clampf(1.15 * reduced_mass * speed, 45.0, 280.0)
+	if is_down(): impulse.y = 34.0
+	hit_motion.launch(impulse, point, source)
+	return true
+
 # Props share interruption, fall, recovery and retaliation with melee combat.
 func receive_prop_hit(damage: float, balance_damage: float, direction: Vector3, source: OfficeWorker = null) -> bool:
 	hit_height = 1.0
 	hit_side = 1.0
-	return _apply_hit(damage, balance_damage, clampf(balance_damage * 0.055, 0.6, 3.6), direction, source, 0.35)
+	var hit := _apply_hit(damage, balance_damage, clampf(balance_damage * 0.055, 0.6, 3.6), direction, source, 0.35)
+	if hit:
+		_spawn_contact(actor.global_position + Vector3.UP, "prop", "Impact")
+	return hit
 
 func _apply_hit(damage: float, balance_damage: float, push: float, direction: Vector3, source: OfficeWorker, protection: float) -> bool:
 	if invulnerable > 0.0 or is_down() or phase == Phase.FLEEING or damage <= 0.0: return false
+	if hit_motion.running: hit_motion.stop()
 	actor.interrupt_for_combat()
 	health = maxf(0, health - damage)
 	balance -= balance_damage
@@ -365,6 +422,7 @@ func tick(delta: float) -> bool:
 	if quiet_time > 4.0 and not is_busy():
 		balance = minf(100.0, balance + delta * 18.0)
 		health = minf(100.0, health + delta * 12.0)
+	var previous_time := phase_time
 	phase_time += delta
 	if phase == Phase.FLEEING:
 		_process_escape(delta)
@@ -372,26 +430,36 @@ func tick(delta: float) -> bool:
 	if phase == Phase.ATTACK:
 		actor._stop_walking_velocity()
 		var contact_time := float(current_move().contact)
-		if not contact_done and phase_time >= contact_time:
-			contact_done = true
-			_resolve_contact()
+		if kind == "bat":
+			bat_strike.tick(previous_time, phase_time)
+			if has_bat(): (actor as OfficePlayer).held_prop.global_transform = BaseballBat.held_pose(actor as OfficePlayer)
+		elif not contact_done and phase_time >= contact_time:
+			contact_done = _resolve_contact()
+			if not contact_done and phase_time >= contact_time + STRIKE_ACTIVE_TIME:
+				contact_done = true
+				_hit_environment()
 		if phase_time >= float(current_move().duration):
 			phase = Phase.READY
 			actor.play_anim("idle")
 		_tick_buffer(delta)
 		return true
 	if phase == Phase.STAGGER or phase == Phase.FALLEN:
-		actor.nav_agent.velocity = Vector3.ZERO
-		actor.velocity = knockback
-		actor.move_and_slide()
-		actor.global_position.y = 0.0
-		knockback = knockback.move_toward(Vector3.ZERO, delta * 9.0)
+		if hit_motion.running:
+			hit_motion.sync_actor()
+		else:
+			actor.nav_agent.velocity = Vector3.ZERO
+			actor.velocity = knockback
+			actor.move_and_slide()
+			actor.global_position.y = 0.0
+			knockback = knockback.move_toward(Vector3.ZERO, delta * 9.0)
 		if phase == Phase.STAGGER and phase_time >= 0.38:
+			hit_motion.stop()
 			phase = Phase.READY
 		elif phase == Phase.FALLEN and phase_time >= FALL_TIME:
 			# NPC recovery shares the same fair animation lane as desk exits.
 			# Remain in the still floor pose until the slot is actually granted.
 			if is_player or not is_instance_valid(actor.routines) or actor.routines.request_stand(actor):
+				hit_motion.stop()
 				phase = Phase.GETTING_UP
 				phase_time = 0.0
 				knockback = Vector3.ZERO
@@ -473,6 +541,7 @@ func _process_retaliation(delta: float) -> void:
 
 func begin_escape() -> void:
 	if is_player: return
+	hit_motion.stop()
 	actor.interrupt_for_combat()
 	phase = Phase.FLEEING
 	phase_time = 0.0

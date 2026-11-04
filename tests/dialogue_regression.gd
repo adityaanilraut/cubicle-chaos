@@ -151,28 +151,15 @@ func _run() -> void:
 	await settle()
 	var maya := ready_worker(1)
 	await settle()
-	player.quest = 0
-	player.interact()
-	check(player.quest == 1 and dialogue.is_open and dialogue.speaker == maya, "Maya interaction advances onboarding once and opens her dialogue")
-	check(dialogue.current_text.contains("🥤") and dialogue.current_text.contains("💧") and player.quest == 1, "Maya asks for water through emojis without advancing the task again")
-	dialogue.close()
-	player.busy = 0.0
-	var cup := Node3D.new()
-	office.add_child(cup)
-	player.carried_cup = cup
-	player.cup_filled = true
-	player.quest = 3
+	office.levels.set_level(1)
+	player.global_position = origin # New levels now restart at the entrance.
 	player.nearby = maya
-	check(dialogue.get_talk_label(maya) == "Give water", "Ready water delivery appears as the talk action")
 	player.interact()
-	check(player.quest == 4 and player.carried_cup == null and dialogue.is_open, "Maya accepts filled water once and opens the completion conversation")
-	check(dialogue.current_text.contains("💛") and dialogue.get_memory(maya).water_thanked, "Maya remembers the favor in dialogue")
-	var after_delivery: int = dialogue.get_memory(maya).rapport
+	check(dialogue.is_open and dialogue.speaker == maya, "Interacting with Maya opens her conversation")
+	check(office.levels.done[1], "Talking to Maya completes the level one conversation objective")
+	check(dialogue.get_talk_label(maya) == "Talk", "Coworkers expose the normal conversation action")
 	dialogue.close()
 	player.busy = 0.0
-	player.interact()
-	check(player.quest == 4 and int(dialogue.get_memory(maya).rapport) == after_delivery, "Repeated thanks cannot duplicate quest rewards or rapport")
-	dialogue.close()
 	maya.state = OfficeWorker.State.WORKING
 	maya.is_seated = true
 	maya.state_timer = 20.0

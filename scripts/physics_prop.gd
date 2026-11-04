@@ -31,6 +31,7 @@ const HANDLING := {
 	"keyboard": {"mass": 0.45, "speed": 0.98},
 	"bear": {"mass": 0.3, "speed": 1.0},
 	"monitor": {"mass": 3.2, "speed": 0.72},
+	"baseball_bat": {"mass": 0.95, "speed": 0.96},
 }
 
 const GLB_BY_ID := {
@@ -43,6 +44,7 @@ const GLB_BY_ID := {
 	"keyboard": "computerKeyboard.glb",
 	"bear": "bear.glb",
 	"monitor": "computerScreen.glb",
+	"baseball_bat": "", # Built locally by BaseballBat, with no imported model.
 }
 const COLOR_BY_ID := {
 	"book": Color(0.55, 0.38, 0.25),
@@ -57,7 +59,7 @@ const COLOR_BY_ID := {
 
 func setup(p_id: String) -> void:
 	prop_id = p_id
-	prop_title = p_id.capitalize()
+	prop_title = "Baseball bat" if p_id == "baseball_bat" else p_id.capitalize()
 	add_to_group("physics_props")
 	var handling: Dictionary = HANDLING.get(prop_id, HANDLING.book)
 	mass = handling.mass
@@ -72,7 +74,7 @@ func setup(p_id: String) -> void:
 	contact_monitor = true
 	max_contacts_reported = 6
 	var file_name: String = GLB_BY_ID.get(prop_id, "books.glb")
-	var data := AssetCatalog.instantiate_centered_glb(file_name, 1.4)
+	var data := {"node": BaseballBat.create_visual(), "size": Vector3(0.13, BaseballBat.LENGTH, 0.13)} if prop_id == "baseball_bat" else AssetCatalog.instantiate_centered_glb(file_name, 1.4)
 	var visual: Node3D = data["node"]
 	footprint_size = Vector3(maxf(data["size"].x, 0.12), maxf(data["size"].y, 0.10), maxf(data["size"].z, 0.12))
 	add_child(visual)
@@ -85,7 +87,7 @@ func setup(p_id: String) -> void:
 	# Visual wrapper is bottom-anchored; keep the body origin at its base.
 	visual.position = Vector3.ZERO
 	add_child(shape)
-	max_health = clampf(16.0 + footprint_size.x * footprint_size.z * 30.0, 18.0, 40.0)
+	max_health = 90.0 if prop_id == "baseball_bat" else clampf(16.0 + footprint_size.x * footprint_size.z * 30.0, 18.0, 40.0)
 	destructible = DestructibleState.new()
 	add_child(destructible)
 	debris_profile = DestructionProfile.for_item(prop_id)
@@ -164,24 +166,31 @@ func volume_query(origin: Vector3, yaw: float, exclusions: Array[RID] = []) -> P
 	query.exclude = ignored
 	return query
 
+func fits_transform(pose: Transform3D, exclusions: Array[RID] = []) -> bool:
+	var query := volume_query(pose.origin, 0.0, exclusions)
+	query.transform = pose * collision_shape.transform
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
 func fits_at(origin: Vector3, yaw: float, exclusions: Array[RID] = []) -> bool:
 	return get_world_3d().direct_space_state.intersect_shape(volume_query(origin, yaw, exclusions), 1).is_empty()
 
 func can_move_to(destination: Vector3, yaw: float, exclusions: Array[RID] = []) -> bool:
-	var start := global_position
-	var angle := angle_difference(global_rotation.y, yaw)
-	var steps := maxi(1, ceili(absf(angle) / 0.18))
+	return can_transform_to(Transform3D(Basis(Vector3.UP, yaw), destination), exclusions)
+
+func can_transform_to(destination: Transform3D, exclusions: Array[RID] = []) -> bool:
+	var start := global_transform
+	var angle := start.basis.get_rotation_quaternion().angle_to(destination.basis.get_rotation_quaternion())
+	var steps := maxi(1, ceili(absf(angle) / 0.12))
 	var previous := start
 	for index in range(1, steps + 1):
-		var t := float(index) / steps
-		var step_yaw := global_rotation.y + angle * t
-		var point := start.lerp(destination, t)
-		if not fits_at(point, step_yaw, exclusions): return false
-		var query := volume_query(previous, step_yaw, exclusions)
-		query.motion = point - previous
+		var pose := start.interpolate_with(destination, float(index) / steps)
+		if not fits_transform(pose, exclusions): return false
+		var query := volume_query(previous.origin, 0.0, exclusions)
+		query.transform = Transform3D(pose.basis, previous.origin) * collision_shape.transform
+		query.motion = pose.origin - previous.origin
 		var fractions := get_world_3d().direct_space_state.cast_motion(query)
 		if not fractions.is_empty() and fractions[0] < 0.999: return false
-		previous = point
+		previous = pose
 	return true
 
 func take_damage(amount: float, direction: Vector3 = Vector3.ZERO) -> bool:

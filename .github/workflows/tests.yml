@@ -22,3 +22,20 @@ jobs:
 
       - name: Run regression suites
         run: bash tools/run_tests.sh godot
+
+      - name: Install web export templates
+        run: |
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O /tmp/templates.zip
+          unzip -q /tmp/templates.zip -d /tmp/godot-templates
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+
+      - name: Export and smoke test the web build
+        run: |
+          bash tools/export_web.sh
+          npm install --prefix /tmp/office-web-test playwright@1.64.1
+          /tmp/office-web-test/node_modules/.bin/playwright install --with-deps chromium
+          python3 -m http.server 8060 --bind 127.0.0.1 --directory build/web >/tmp/office-web-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          NODE_PATH=/tmp/office-web-test/node_modules node tools/web_smoke.cjs

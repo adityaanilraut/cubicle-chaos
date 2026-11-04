@@ -84,6 +84,9 @@ func _apply_fighting_pose(skeleton: Skeleton3D) -> void:
 	var turn := 0.0
 	if attacking:
 		match combat.move_id:
+			"bat_forehand": turn = 0.9 * extension - 0.35 * chamber
+			"bat_backhand": turn = -0.9 * extension + 0.35 * chamber
+			"bat_overhead": turn = -0.15 * chamber
 			"cross": turn = -0.32 * extension
 			"jab", "palm": turn = 0.20 * extension
 			"hook": turn = 0.65 * extension - 0.25 * chamber

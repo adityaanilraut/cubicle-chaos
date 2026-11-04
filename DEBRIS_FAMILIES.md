@@ -1,11 +1,11 @@
 # Debris families
 
-All **56 active object types** (47 furniture types and 9 loose prop types) have
-an explicit assignment across **17 families**. An additional **mixed** family
+All **57 active object types** (47 furniture types and 10 loose prop types) have
+an explicit assignment across **18 families**. An additional **mixed** family
 handles unknown future IDs. No current object uses that fallback.
 
 Families describe what an object breaks into and how its fragments behave.
-All 56 types are breakable, including desks, chairs, tables, partitions, rugs,
+All 57 types are breakable, including desks, chairs, tables, partitions, rugs,
 appliances and bathroom fixtures. Occupied or grabbed furniture can also break:
 workers release lost seats and desk assignments, player activities cancel,
 grips release and supported cups return to the floor. Editor previews do not
@@ -15,6 +15,7 @@ take damage. Destroyed furniture stays absent after saving and loading.
 
 | Family | Object IDs | Debris |
 | --- | --- | --- |
+| Wooden bat (1) | `baseball_bat` | Handle, split barrel sections and fabric grip wrap |
 | Ceramic plant (2) | `plant`, `potted_plant` | Curved pot shards, base, wooden stem; soil and leaves |
 | Wooden table (4) | `side_table`, `coffee_table`, `conference_table`, `round_table` | Split tabletop and legs; drawer fronts only for the side table |
 | Wooden storage (5) | `bookcase`, `bookcase_wide`, `reception_desk`, `kitchen_counter`, `kitchen_bar` | Side, back and base panels, shelves; paper bundles for bookcases |
@@ -93,3 +94,5 @@ bash tools/run_tests.sh
 
 The preview writes `build/previews/debris-families.png`, an exploded component
 view of each family, including the fallback. Run the preview with a display.
+
+The procedural `baseball_bat` adds the **wooden_bat** family: a handle, two split barrel sections and a fabric grip wrap. It uses wood impact/break sounds and the same debris budgets.

@@ -83,6 +83,8 @@ func claim_personal_chair(requester: OfficeWorker, chair: FurnitureItem, desk: F
 	return chair
 
 func get_or_assign_personal_chair(requester: OfficeWorker) -> FurnitureItem:
+	if not requester.meeting_role.is_empty():
+		return null
 	var current: FurnitureItem = requester.assigned_chair
 	if is_instance_valid(current) and not current.is_queued_for_deletion() and current.is_chair:
 		if current.is_preview or is_instance_valid(current.being_moved_by):

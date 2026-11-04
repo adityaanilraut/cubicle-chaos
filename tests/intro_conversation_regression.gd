@@ -90,7 +90,7 @@ func _run() -> void:
 			check(not player.dialogue.is_open, "Conversation finishes without a choice")
 		check(lines.size() == 6 and replies.size() >= 4, "Each coworker rotates distinct lines and responses")
 		person.global_position = Vector3(-11, 0, 8)
-	check(first_lines.size() == 6, "Coworkers have distinctive voices")
+	check(first_lines.size() == office.workers_container.get_child_count(), "Coworkers have distinctive voices")
 	var a: OfficeWorker = office.workers_container.get_child(0)
 	var b: OfficeWorker = office.workers_container.get_child(1)
 	var routines = office.get_node("OfficeRoutines")

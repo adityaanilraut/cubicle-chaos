@@ -8,6 +8,11 @@ static func parts_for(size: Vector3, profile: DestructionProfile) -> Array[Dicti
 	var parts: Array[Dictionary] = []
 	var s := Vector3(maxf(size.x, 0.06), maxf(size.y, 0.025), maxf(size.z, 0.06))
 	match profile.fracture_id:
+		"bat":
+			_add(parts, s, profile, "BatHandle", Vector3(0.36, 0.30, 0.36), Vector3(0, 0.15, 0))
+			_add(parts, s, profile, "BatBarrelLeft", Vector3(0.45, 0.62, 0.75), Vector3(-0.22, 0.64, 0))
+			_add(parts, s, profile, "BatBarrelRight", Vector3(0.45, 0.62, 0.75), Vector3(0.22, 0.64, 0))
+			_add(parts, s, profile, "GripWrap", Vector3(0.40, 0.20, 0.08), Vector3(0, 0.14, 0.2), "fabric")
 		"storage", "cabinet":
 			_shell(parts, s, profile)
 			for y in [0.3, 0.6, 0.88]:

@@ -20,6 +20,7 @@ var locked_person: OfficeWorker
 var target_ring: MeshInstance3D
 var mouse_seen := false
 var pickup_origin := Vector3.ZERO
+var pickup_pose := Transform3D.IDENTITY
 var preview: MeshInstance3D
 var landing: MeshInstance3D
 var charge_label: Label3D
@@ -158,11 +159,13 @@ func pick_up(prop: PhysicsProp) -> bool:
 	if Vector2(toward.x, toward.z).length() > 0.05: player.rotation.y = atan2(toward.x, toward.z)
 	var yaw := player.global_rotation.y
 	var target := grip_position(prop)
-	if not prop.can_move_to(target, yaw, [player.get_rid()]):
+	var lift_pose := BaseballBat.held_pose(player) if prop.prop_id == "baseball_bat" else Transform3D(Basis(Vector3.UP, yaw), target)
+	if not prop.can_transform_to(lift_pose, [player.get_rid()]):
 		player.rotation.y = old_yaw
 		return false
 	player.held_prop = prop
 	pickup_origin = prop.global_position
+	pickup_pose = prop.global_transform
 	prop.pick_up(player)
 	start_gesture("pickup", 0.32)
 	OfficeAudio.play_at(get_tree(), "pickup")
@@ -174,6 +177,7 @@ func start_gesture(value: String, duration: float) -> void:
 	gesture_duration = duration
 
 func grip_position(prop: PhysicsProp) -> Vector3:
+	if prop.prop_id == "baseball_bat": return BaseballBat.held_pose(player).origin
 	var windup := charge_fraction() if charging else 0.0
 	var distance := 0.42 + minf(prop.footprint_size.z * 0.35, 0.18) - windup * 0.15
 	return player.global_position + player.global_basis.z * distance + Vector3.UP * (1.02 - minf(prop.footprint_size.y * 0.3, 0.22) + windup * 0.20)
@@ -181,6 +185,20 @@ func grip_position(prop: PhysicsProp) -> Vector3:
 func follow_held() -> bool:
 	var prop := player.held_prop
 	if not is_instance_valid(prop): return true
+	if prop.prop_id == "baseball_bat":
+		if player.combat.phase == OfficeCombat.Phase.ATTACK and player.combat.kind == "bat": return true
+		var pose := BaseballBat.held_pose(player)
+		if gesture == "pickup":
+			var t := smoothstep(0.0, 1.0, minf(gesture_time / gesture_duration, 1.0))
+			pose = pickup_pose.interpolate_with(pose, t)
+		# Combat knockback or loading can leave the held pose inside geometry.
+		# Let the player move out; resume normal collision checks once clear.
+		if not prop.fits_transform(prop.global_transform, [player.get_rid()]):
+			prop.global_transform = pose
+			return true
+		if not prop.can_transform_to(pose, [player.get_rid()]): return false
+		prop.global_transform = pose
+		return true
 	var target := grip_position(prop)
 	if gesture == "pickup":
 		var t := smoothstep(0.0, 1.0, minf(gesture_time / gesture_duration, 1.0))
@@ -220,7 +238,7 @@ func release_throw(power: float = -1.0) -> bool:
 	var prop := player.held_prop
 	var origin := prop.global_position
 	# A throw starts at the last collision-checked held pose, never beyond a wall.
-	if not prop.fits_at(origin, prop.global_rotation.y, [player.get_rid()]):
+	if not prop.fits_transform(prop.global_transform, [player.get_rid()]):
 		cancel_charge()
 		return false
 	var launch := _launch_velocity(prop, origin, strength)

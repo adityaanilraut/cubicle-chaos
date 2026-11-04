@@ -6,7 +6,11 @@ const SEQUENCE := ["jab", "cross", "hook", "front_kick", "palm", "side_kick", "u
 const LIGHT_SEQUENCE := ["jab", "cross", "hook", "palm", "uppercut"]
 const HEAVY_SEQUENCE := ["front_kick", "side_kick", "roundhouse", "sweep", "spinning_kick"]
 const LONG_RANGE := ["front_kick", "side_kick", "roundhouse", "spinning_kick"]
+const BAT_LIGHT_SEQUENCE := ["bat_forehand", "bat_backhand"]
 const MOVES := {
+	"bat_forehand": {"label": "Bat forehand", "family": "bat", "style": "Baseball", "side": "Right", "reach": 1.85, "contact": 0.28, "duration": 0.72, "cooldown": 0.78, "damage": 26.0, "balance": 44.0, "push": 3.2, "height": 1.15, "heavy": false},
+	"bat_backhand": {"label": "Bat backhand", "family": "bat", "style": "Baseball", "side": "Left", "reach": 1.85, "contact": 0.30, "duration": 0.76, "cooldown": 0.82, "damage": 24.0, "balance": 40.0, "push": 3.0, "height": 1.15, "heavy": false},
+	"bat_overhead": {"label": "Bat overhead smash", "family": "bat", "style": "Baseball", "side": "Right", "reach": 1.80, "contact": 0.48, "duration": 1.10, "cooldown": 1.18, "damage": 44.0, "balance": 85.0, "push": 4.6, "height": 0.85, "heavy": true},
 	"jab": {"label": "Lead jab", "family": "punch", "style": "Karate", "side": "Left", "reach": 1.20, "contact": 0.16, "duration": 0.40, "cooldown": 0.46, "damage": 12.0, "balance": 20.0, "push": 0.8, "height": 1.35},
 	"cross": {"label": "Reverse punch", "family": "punch", "style": "Karate", "side": "Right", "reach": 1.20, "contact": 0.19, "duration": 0.54, "cooldown": 0.66, "damage": 18.0, "balance": 36.0, "push": 1.5, "height": 1.35},
 	"hook": {"label": "Hook punch", "family": "punch", "style": "Kung fu", "side": "Left", "reach": 1.10, "contact": 0.24, "duration": 0.57, "cooldown": 0.63, "damage": 20.0, "balance": 32.0, "push": 1.3, "height": 1.35},

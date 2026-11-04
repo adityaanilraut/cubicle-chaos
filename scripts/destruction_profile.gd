@@ -17,6 +17,7 @@ const MATERIALS := {
 }
 
 const FAMILIES := {
+	"wooden_bat": {"material": "wood", "fracture": "bat", "resistance": 1.3, "items": ["baseball_bat"]},
 	"ceramic_plant": {"material": "ceramic", "fracture": "plant", "resistance": 0.75, "color": Color(0.67, 0.33, 0.23), "items": ["plant", "potted_plant"]},
 	"wooden_table": {"material": "wood", "fracture": "table", "resistance": 1.15, "items": ["side_table", "coffee_table", "conference_table", "round_table"]},
 	"wooden_storage": {"material": "wood", "fracture": "storage", "resistance": 1.25, "items": ["bookcase", "bookcase_wide", "reception_desk", "kitchen_counter", "kitchen_bar"]},

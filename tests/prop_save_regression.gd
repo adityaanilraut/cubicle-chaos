@@ -31,6 +31,13 @@ func _run() -> void:
 	office.game_menu.pause_on_focus_loss = false
 	office.player.set_physics_process(false)
 	for worker in office.workers_container.get_children(): worker.set_physics_process(false)
+	check(OfficeSave.save_game(office) and OfficeSave.load_game(office), "Level task box survives saving and loading")
+	var task_box: PhysicsProp = office.levels.task_prop
+	check(is_instance_valid(task_box) and task_box.get_parent() == office.props_container, "Loaded task box is connected to the level")
+	if is_instance_valid(task_box):
+		task_box.global_position = office.levels.delivery_spot.global_position
+		office.levels._process(0.0)
+		check(office.levels.done[2], "Loaded task box still completes its delivery")
 	clear_props()
 	var prop: PhysicsProp = office.spawn_prop("monitor", Vector3(0, 2, 5))
 	prop.global_rotation = Vector3(0.1, 0.7, 0.2)
@@ -60,6 +67,15 @@ func _run() -> void:
 	check(not prop.freeze and not prop.is_held() and prop.linear_velocity.is_zero_approx(), "Previously carried prop restores as a released object")
 	check(prop.impact.quiet_time > 0 and office.player in prop.get_collision_exceptions(), "Loaded carried prop has safe settling and owner grace")
 	clear_props()
+	var bat: PhysicsProp = office.spawn_prop("baseball_bat", Vector3(0, 1, 5))
+	bat.pick_up(office.player)
+	office.player.held_prop = bat
+	check(OfficeSave.save_game(office) and OfficeSave.load_game(office), "A shift can save and load with a bat equipped")
+	bat = office.props_container.get_child(0)
+	check(office.player.held_prop == bat and bat.is_held() and bat.freeze, "Loading keeps the bat equipped")
+	check(bat.global_transform.is_equal_approx(BaseballBat.held_pose(office.player)), "Loaded bat is positioned in the player's hands")
+	clear_props()
+	office.player.held_prop = null
 	check(OfficeSave.save_game(office) and OfficeSave.load_game(office), "Empty prop state saves and loads")
 	check(office.props_container.get_child_count() == 0, "Destroyed props do not respawn when loading a zero-prop save")
 	if had_save:

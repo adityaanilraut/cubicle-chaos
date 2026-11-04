@@ -172,6 +172,24 @@ func _run() -> void:
 		await settle(1)
 	check(fixture.global_position.distance_to(start) < 0.02, "Pulling reverses furniture movement")
 	check(player.furniture_motion == "pull", "Pulling selects backward steps")
+	var sideways := Vector3(-player.grab_axis.z, 0, player.grab_axis.x)
+	for i in range(20):
+		player._process_furniture_move(sideways, 1.0 / 60.0)
+		await settle(1)
+	check((fixture.global_position - start).dot(sideways) > 0.15, "Furniture moves sideways while gripped")
+	check((player.global_position - fixture.global_position).is_equal_approx(offset), "Sideways movement keeps the player at the grip")
+	for i in range(20):
+		player._process_furniture_move(-sideways, 1.0 / 60.0)
+		await settle(1)
+	check(fixture.global_position.distance_to(start) < 0.02, "Furniture moves back in the opposite sideways direction")
+	var diagonal := (sideways + player.grab_axis).normalized()
+	for i in range(20):
+		player._process_furniture_move(diagonal, 1.0 / 60.0)
+		await settle(1)
+	check((fixture.global_position - start).dot(diagonal) > 0.15, "Furniture moves diagonally while gripped")
+	for i in range(20):
+		player._process_furniture_move(-diagonal, 1.0 / 60.0)
+		await settle(1)
 	player.release_furniture()
 	check(fixture.being_moved_by == null and not player.grip_modifier.active, "Release restores furniture and character")
 	check(not player.get_collision_exceptions().has(fixture), "Release removes temporary collision exception")

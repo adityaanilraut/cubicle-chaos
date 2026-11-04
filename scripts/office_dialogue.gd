@@ -5,20 +5,26 @@ extends CanvasLayer
 const TURN_SECONDS := 2.5
 # Each coworker has recurring interests, with a matching automatic reply and closer.
 const PROFILES := {
-	"Alex": ["📋 I made a list!", "📅 Another meeting?", "✅ Lists love me.", "🗂️ Where's my list?", "📌 One more task!", "📝 I listed my lists."],
+	"Alex": ["💼 Welcome to my team!", "📊 How is the shift?", "👏 Good work today!", "☕ Even bosses need coffee.", "📌 Teamwork comes first!", "📅 Let’s keep meetings short."],
 	"Maya": ["🌱 My plant waved!", "☀️ Nice day inside!", "🥤 Water break?", "🌿 Plants need pep talks.", "🌸 Desk garden update!", "😊 You made my day!"],
 	"Jordan": ["🎨 This needs color!", "🖍️ I drew the printer.", "✨ Fancy a doodle?", "🖼️ Art break!", "🌈 More color, please!", "✏️ My pen is inspired."],
 	"Sam": ["☕ Coffee o'clock!", "☕ Is this my fifth?", "🥐 Snack emergency!", "🫖 Coffee needs coffee.", "🍪 Did you see a cookie?", "☕ I run on beans."],
 	"Taylor": ["📚 Plot twist: work!", "📖 One more chapter?", "🔎 Have you read this?", "📕 Books beat meetings.", "📚 My desk has a sequel.", "🤓 I brought footnotes!"],
-	"Morgan": ["💻 Try turning it off!", "🔧 I fixed the thing!", "🖥️ The printer blinked.", "🤖 My code said hello.", "🔌 Who unplugged lunch?", "💾 Saving the day!"]
+	"Morgan": ["💻 Try turning it off!", "🔧 I fixed the thing!", "🖥️ The printer blinked.", "🤖 My code said hello.", "🔌 Who unplugged lunch?", "💾 Saving the day!"],
+	"Casey": ["🎤 Welcome to the briefing!", "📈 Our numbers are up!", "💡 Any bright ideas?", "📊 One more slide!", "🙋 Questions, anyone?", "👏 Thanks for joining us!"],
+	"Riley": ["📝 I took good notes!", "🙋 I have a question!", "📈 That chart looks good!", "💡 Let’s try that idea!", "👏 Nice presentation!", "☕ Is there a coffee slide?"],
+	"Jamie": ["📊 I like the green bar!", "🤔 What is our next step?", "📝 Adding that to my notes!", "🙌 Great team effort!", "💡 I have a suggestion!", "👏 Count me in!"]
 }
 const REPLIES := {
-	"Alex": ["👍 Very organized!", "😅 Again?", "😂 A perfect match!", "🔎 Check the list!", "💪 You got this!", "🤯 Listception!"],
+	"Alex": ["👋 Happy to be here!", "👍 Going well, boss!", "😊 Thanks, Alex!", "☕ I’ll put a pot on!", "💪 We’ve got this!", "🎉 Best idea all day!"],
 	"Maya": ["🌱 Say hi for me!", "☀️ Windows count!", "💧 I'm in!", "😊 So do I!", "🌿 I'm rooting for it!", "💛 Right back at you!"],
 	"Jordan": ["🌈 All the colors!", "😂 Frame it!", "✏️ Absolutely!", "🎨 I'm an admirer!", "🖍️ Coming right up!", "✨ Let it create!"],
 	"Sam": ["☕ My favorite time!", "😳 Who's counting?", "🍪 I'm on it!", "😂 A bean-ception!", "🔎 Check your hand!", "🏃 Bean power!"],
 	"Taylor": ["😱 Didn't see that coming!", "📖 Just one!", "🤓 Tell me more!", "📚 Every time!", "😂 A desk trilogy!", "📝 Naturally!"],
-	"Morgan": ["🔌 The classic!", "🙌 Office hero!", "😳 It knows!", "👋 Hello, code!", "🥪 Not again!", "💾 And a backup!"]
+	"Morgan": ["🔌 The classic!", "🙌 Office hero!", "😳 It knows!", "👋 Hello, code!", "🥪 Not again!", "💾 And a backup!"],
+	"Casey": ["👋 Glad to join!", "📈 Looking good!", "💡 Plenty of them!", "😄 Make it a good one!", "🙋 I have one!", "👏 Thanks, Casey!"],
+	"Riley": ["📝 Share them with me!", "👂 Let’s hear it!", "📊 Agreed!", "👍 Let’s do it!", "👏 Absolutely!", "☕ The best slide!"],
+	"Jamie": ["🌱 Very on brand!", "💪 Let’s find out!", "📝 Good thinking!", "🙌 Teamwork!", "👂 I’m listening!", "🎉 Welcome aboard!"]
 }
 const CLOSERS := ["😊 Back to it!", "👋 See you around!", "😄 You get me!", "✨ Good chat!"]
 const FALLBACK := ["👋 Hello there!", "☕ Break time?", "😄 Nice to see you!", "💼 Busy day!"]
@@ -57,7 +63,7 @@ func get_memory(worker: OfficeWorker) -> Dictionary:
 	return _memory_for(worker).duplicate(true)
 
 func get_talk_label(worker: OfficeWorker) -> String:
-	return "Talk"
+	return "Talk to boss" if worker.is_boss else "Talk"
 
 func open(worker: OfficeWorker) -> bool:
 	if is_open and speaker == worker:

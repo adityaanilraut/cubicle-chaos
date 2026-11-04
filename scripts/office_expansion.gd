@@ -1,6 +1,8 @@
 class_name OfficeExpansion
 extends RefCounted
 
+const OfficeDetails = preload("res://scripts/office_details.gd")
+
 # South wing: a 2 m circulation spine connects five independently entered rooms.
 const DOORWAYS := [
 	Rect2(-10.0, 11.35, 2.0, 1.30),
@@ -73,6 +75,11 @@ static func build_architecture(office: Node3D, parent: Node3D) -> void:
 	office._add_room_sign(wing, "03 / COLLABORATION STUDIO", Vector3(4, 2.65, 12), sign_color)
 	office._add_room_sign(wing, "04 / WC", Vector3(8.5, 2.65, 12), sign_color)
 	office._add_room_sign(wing, "05 / WC + SHOWER", Vector3(11.5, 2.65, 12), sign_color)
+	# Fixed details sit on the walls, outside entrances and activity areas.
+	OfficeDetails.bathroom_supplies(wing, Vector3(7.10, 1.35, 15.0), PI * 0.5)
+	OfficeDetails.bathroom_supplies(wing, Vector3(10.10, 1.35, 15.0), PI * 0.5)
+	OfficeDetails.safety_station(wing, Vector3(-12.85, 1.15, 18.1), PI * 0.5)
+	OfficeDetails.clock(wing, Vector3(-2.0, 1.85, 12.10), 0.0)
 	var tray := ModernAssets.material("cable_tray", Color(0.56, 0.52, 0.45))
 	for x in [-11.3, -6.7]:
 		ModernAssets.box(wing, Vector3(0.22, 0.08, 4.8), Vector3(x, 2.58, 15.6), tray)

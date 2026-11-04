@@ -13,6 +13,11 @@ func _process_modification() -> void:
 	var lean := 0.05
 	if held:
 		var prop: PhysicsProp = player.held_prop
+		if prop.prop_id == "baseball_bat":
+			for side in ["Left", "Right"]:
+				var target := prop.global_transform * Vector3(0, 0.10 if side == "Right" else 0.23, 0)
+				_solve_arm(skeleton, side, skeleton.to_local(target), 1.0 if side == "Left" else -1.0)
+			return
 		center = prop.global_position + Vector3.UP * minf(prop.footprint_size.y * 0.45, 0.25)
 		width = clampf(prop.footprint_size.x * 0.42, 0.10, 0.28)
 		lean += minf(prop.mass * 0.025, 0.16)

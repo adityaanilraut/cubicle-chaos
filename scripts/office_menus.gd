@@ -78,6 +78,8 @@ func _build_overlay() -> void:
 	scroll.add_child(content)
 
 func _clear_content() -> void:
+	_capturing_action = ""
+	_binding_buttons.clear()
 	for node in content.get_children():
 		content.remove_child(node)
 		node.queue_free()
@@ -152,7 +154,7 @@ func _animate_iris(opening: bool) -> void:
 		if is_instance_valid(_first_button): _first_button.grab_focus()
 
 func start_game() -> void:
-	if transitioning: return
+	if transitioning or menu_state == &"playing": return
 	has_started = true
 	_set_state(&"playing")
 	if _replay_intro:
@@ -163,11 +165,23 @@ func start_game() -> void:
 		_intro_checked = true
 		if office.start_in_menu:
 			office.intro.start_if_new()
-	_animate_iris(true)
+	# Resume immediately so input cannot be lost during a menu transition.
+	menu_panel.visible = true
+	transitioning = false
 
 func pause_game() -> void:
 	if menu_state != &"playing" or transitioning: return
-	return_to_title(true)
+	_show_pause_menu()
+
+func _show_pause_menu() -> void:
+	_clear_content()
+	_label("SHIFT PAUSED", 40, Color.WHITE)
+	_button("Continue level", start_game, true)
+	_button("Settings", show_settings)
+	_button("Return to level menu", return_to_title)
+	iris_material.set_shader_parameter("radius", 0.0)
+	menu_panel.visible = true
+	_set_state(&"paused")
 
 func return_to_title(animated := false) -> void:
 	if transitioning: return
@@ -185,12 +199,12 @@ func return_to_title(animated := false) -> void:
 	_button("Continue level %d" % office.levels.level if has_started else "Start level 1", start_game, true)
 	_label("CHOOSE A LEVEL", 14, Color("e1b66d"))
 	for level_number in range(1, 6):
-		var button := _button("%02d   %s" % [level_number, "First day" if level_number == 1 else "Helping out" if level_number == 2 else "Coming soon"], func():
+		var button := _button("%02d   %s" % [level_number, LevelObjectives.NAMES[level_number - 1]], func():
 			office.levels.set_level(level_number)
 			start_game()
 		)
 		button.custom_minimum_size.y = 38
-		button.disabled = level_number > office.levels.unlocked or level_number > 2
+		button.disabled = level_number > office.levels.unlocked
 	_button("Settings", show_settings)
 	_button("Credits & licenses", show_credits)
 	_button("Replay introduction", func():
@@ -260,7 +274,7 @@ func show_settings() -> void:
 	ui_scale.value_changed.connect(func(value: float): set_setting("ui_scale", snappedf(value, 0.05)))
 	content.add_child(ui_scale)
 	_toggle("High-contrast highlights (yellow, thicker outlines)", "high_contrast")
-	_label("Controls — select a key, then press the new key. Esc cancels. Movement (WASD/arrows), Run (Shift) and Pause (Esc/P) stay fixed.", 13, Color("9caec3"))
+	_label("Controls — select a key, then press the new key. Esc cancels. Movement, Run, Pause, zoom and save/load keys stay fixed.", 13, Color("9caec3"))
 	_binding_buttons.clear()
 	for action_id in OfficeInput.action_ids():
 		_binding_row(action_id)
@@ -324,6 +338,8 @@ func _binding_row(action_id: String) -> void:
 	button.text = OfficeInput.key_name(action_id)
 	button.custom_minimum_size = Vector2(150, 36)
 	button.pressed.connect(func():
+		if _binding_buttons.has(_capturing_action):
+			_binding_buttons[_capturing_action].text = OfficeInput.key_name(_capturing_action)
 		_capturing_action = action_id
 		button.text = "Press a key…"
 		button.grab_focus()
@@ -335,9 +351,11 @@ func _binding_row(action_id: String) -> void:
 func _capture_binding(keycode: int) -> void:
 	var action_id := _capturing_action
 	_capturing_action = ""
-	if keycode == KEY_ESCAPE or keycode == KEY_NONE:
+	if OfficeInput.is_reserved(keycode):
 		if _binding_buttons.has(action_id):
 			_binding_buttons[action_id].text = OfficeInput.key_name(action_id)
+		if keycode != KEY_ESCAPE and is_instance_valid(save_status):
+			save_status.text = "That key is reserved for a fixed control. Choose another key."
 		return
 	var updated: Dictionary = OfficeInput.sanitized(settings.get("bindings", {}))
 	# Swap with whichever action currently owns the key, so keys stay unique.
@@ -355,8 +373,7 @@ func close_settings() -> void:
 	if settings_return_state == &"title":
 		return_to_title()
 	else:
-		menu_state = &"playing"
-		pause_game()
+		_show_pause_menu()
 
 func restore_defaults() -> void:
 	settings = DEFAULT_SETTINGS.duplicate(true)
@@ -374,6 +391,10 @@ func set_setting(key: String, value: Variant) -> void:
 	settings[key] = value
 	_validate_settings()
 	_apply_settings()
+	if key == "bindings":
+		for action_id in _binding_buttons:
+			if is_instance_valid(_binding_buttons[action_id]):
+				_binding_buttons[action_id].text = OfficeInput.key_name(action_id)
 	_save_settings()
 
 func _validate_settings() -> void:
@@ -452,6 +473,22 @@ func _input(event: InputEvent) -> void:
 	if event.keycode != KEY_ESCAPE and event.keycode != KEY_P:
 		return
 	get_viewport().set_input_as_handled()
+	if menu_state == &"playing" and event.keycode == KEY_ESCAPE:
+		if office.player.dialogue.is_open:
+			office.player.dialogue.close()
+			return
+		if office.edit_mode != office.EditMode.SELECT:
+			office.cancel_current_action()
+			return
+		if office.player.prop_handling.charging:
+			office.player.prop_handling.cancel_charge()
+			return
+		if is_instance_valid(office.player.grabbed_furniture):
+			office.player.release_furniture()
+			return
+		if office.player.equipment.is_active():
+			office.player.equipment.cancel()
+			return
 	match menu_state:
 		&"playing":
 			pause_game()

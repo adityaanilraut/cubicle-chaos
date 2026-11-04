@@ -15,6 +15,10 @@ static func _supported_ids() -> Array[String]:
 	return ids
 
 const DEFINITIONS := {
+	"eq_watch": {"label": "Watch briefing", "duration": 8.0, "animation": "idle_breath", "working": "Watching the team briefing", "cooldown": 5.0},
+	"eq_brainstorm": {"label": "Brainstorm", "duration": 5.0, "animation": "brainstorm", "working": "Sketching ideas on the whiteboard", "cooldown": 6.0},
+	"eq_check_in": {"label": "Check in", "duration": 2.0, "animation": "work_standing", "working": "Signing in for your shift", "cooldown": 20.0},
+	"eq_stretch": {"label": "Stretch break", "duration": 4.0, "animation": "stretch", "working": "Stretching away from your desk", "cooldown": 10.0},
 	"eq_report": {"label": "Write report", "duration": 7.0, "animation": "work_standing", "working": "Writing a report", "cooldown": 2.0},
 	"eq_print": {"label": "Print report", "duration": 3.0, "animation": "idle_breath", "working": "Printing a report", "cooldown": 1.0},
 	"eq_collect": {"label": "Collect pages", "duration": 1.0, "animation": "work_standing", "working": "Collecting printed pages", "cooldown": 0.0},
@@ -47,7 +51,8 @@ var stats := {
 	"notes_ready": 0, "presentations": 0, "coffees_made": 0,
 	"coffees_drank": 0, "snacks_taken": 0, "snacks_eaten": 0,
 	"meals_prepared": 0, "rest_breaks": 0,
-	"toilet_breaks": 0, "showers_taken": 0, "hands_washed": 0
+	"toilet_breaks": 0, "showers_taken": 0, "hands_washed": 0,
+	"briefings_watched": 0, "ideas_shared": 0, "check_ins": 0, "stretch_breaks": 0
 }
 var cooldowns: Dictionary = {}
 var _item_transform := Transform3D.IDENTITY
@@ -84,6 +89,9 @@ func _requirement(action: String, item: FurnitureItem) -> String:
 	if BathroomActivity.handles(action):
 		return BathroomActivity.entry_issue(player, item)
 	match action:
+		"eq_watch":
+			if not is_instance_valid(player.office.life) or item != player.office.life.screen or not player.office.life.stage.visible:
+				return "Join the live briefing in the visitor meeting room, north of reception."
 		"eq_report":
 			if focus < 15.0: return "Take a coffee, meal, or lounge break to regain focus."
 			if int(stats.reports_ready) >= 8: return "Print a finished report before writing another."
@@ -223,6 +231,19 @@ func _complete() -> void:
 	var item := active_item
 	var result := ""
 	match id:
+		"eq_watch":
+			stats.briefings_watched += 1; _restore(0, 5, 12)
+			result = "Briefing complete. The team appreciates you joining in."
+		"eq_brainstorm":
+			stats.ideas_shared += 1; _restore(0, 0, 8)
+			result = "New ideas shared on the whiteboard!"
+			if is_instance_valid(player.office.life): player.office.life.leave_ideas(item)
+		"eq_check_in":
+			stats.check_ins += 1
+			result = "Welcome aboard! The visitor meeting is north of reception; Alex is the boss."
+		"eq_stretch":
+			stats.stretch_breaks += 1; _restore(0, 20, 18)
+			result = "Stretch break complete. Feeling more focused."
 		"eq_report":
 			stats.reports_written += 1; stats.reports_ready += 1; focus = maxf(0.0, focus - 15.0)
 			result = "Report finished. Print it at the printer hub."
@@ -279,7 +300,7 @@ func _complete() -> void:
 	if id == "eq_toilet": OfficeAudio.play_at(player.get_tree(), "splash")
 	cooldowns[id] = float(DEFINITIONS[id].cooldown)
 	OfficeAudio.play_at(player.get_tree(), "ding")
-	var bubble_words := {"eq_coffee": "☕ Hot!", "eq_drink_coffee": "☕ Yum!", "eq_eat": "🍪 Yum!", "eq_meal": "🍽️ Yum!", "eq_present": "🎤 Ta-da!", "eq_relax": "😌 Ahh!", "eq_report": "📋 Done!", "eq_print": "🖨️ Done!", "eq_toilet": "🚽 Done!", "eq_shower": "🚿 Fresh!", "eq_wash_hands": "🧼 Clean!"}
+	var bubble_words := {"eq_watch": "👏 Great briefing!", "eq_brainstorm": "💡 New idea!", "eq_check_in": "👋 Clocked in!", "eq_stretch": "🙆 Much better!", "eq_coffee": "☕ Hot!", "eq_drink_coffee": "☕ Yum!", "eq_eat": "🍪 Yum!", "eq_meal": "🍽️ Yum!", "eq_present": "🎤 Ta-da!", "eq_relax": "😌 Ahh!", "eq_report": "📋 Done!", "eq_print": "🖨️ Done!", "eq_toilet": "🚽 Done!", "eq_shower": "🚿 Fresh!", "eq_wash_hands": "🧼 Clean!"}
 	if bubble_words.has(id):
 		player.show_social_speech(String(bubble_words[id]))
 	active_action = ""

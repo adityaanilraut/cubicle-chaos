@@ -121,7 +121,7 @@ func handle_event(event: InputEvent) -> bool:
 		aiming = true
 		aim_point = point
 		player.prop_handling.set_aim_point(point)
-		if is_instance_valid(player.held_prop): player.prop_handling.begin_charge("mouse")
+		if is_instance_valid(player.held_prop) and not player.combat.has_bat(): player.prop_handling.begin_charge("mouse")
 		return true
 	return false
 
@@ -136,7 +136,7 @@ func _try_world_action(body: Node3D) -> bool:
 		player._update_nearby()
 		if player.nearby != body: return false
 		for action in player.get_context_actions():
-			if action.id == "interact" or action.id.begins_with("eq_"):
+			if action.id == "interact" or action.id.begins_with("eq_") or action.id.begins_with("level_"):
 				stop_walking()
 				player.perform_context_action(action.id, body)
 				return true

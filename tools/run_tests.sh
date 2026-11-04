@@ -28,14 +28,17 @@ export XDG_DATA_HOME="$test_profile/data"
 export XDG_CONFIG_HOME="$test_profile/config"
 
 cd "$project_dir"
-"$godot_bin" --headless --path . --import >/dev/null 2>&1 || true
+if ! python3 tools/run_with_timeout.py "${GODOT_TEST_TIMEOUT:-120}" "$godot_bin" --headless --path . --import; then
+  echo "Godot import failed; regression suites were not run." >&2
+  exit 1
+fi
 
 failures=0
 ran=0
 for suite in tests/*_regression.gd; do
   ran=$((ran + 1))
   name="$(basename "$suite")"
-  if output="$("$godot_bin" --headless --path . --script "res://$suite" 2>&1)"; then
+  if output="$(python3 tools/run_with_timeout.py "${GODOT_TEST_TIMEOUT:-120}" "$godot_bin" --headless --path . --script "res://$suite" 2>&1)"; then
     echo "PASS $name"
   else
     failures=$((failures + 1))

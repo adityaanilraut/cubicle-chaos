@@ -30,7 +30,7 @@ func greet_player(player: OfficeWorker) -> void:
 	worker.play_anim("wave")
 
 func is_willing_to_socialize(initiator: OfficeWorker) -> bool:
-	if worker == initiator or worker.combat.is_engaged() or worker.social_session_id != 0 or worker.social_cooldown > 0.0 or is_instance_valid(worker.player_conversation_partner) or worker._forced_stand_pending:
+	if is_instance_valid(worker.meeting) or worker == initiator or worker.combat.is_engaged() or worker.social_session_id != 0 or worker.social_cooldown > 0.0 or is_instance_valid(worker.player_conversation_partner) or worker._forced_stand_pending:
 		return false
 	if worker.state == OfficeWorker.State.WORKING:
 		return worker.social_need >= 0.40 or worker.state_timer <= 12.0
@@ -131,7 +131,7 @@ func begin_player_conversation(player: OfficeWorker) -> bool:
 	worker._conversation_anim = String(worker.state_playback.get_current_node()) if worker.state_playback != null else "idle"
 	worker._stop_walking_velocity()
 	worker._path_initialized = false
-	worker.play_anim("typing" if worker.is_seated else "idle_breath")
+	worker.play_anim("sitting_idle" if worker.is_seated else "idle_breath")
 	worker._update_label()
 	return true
 

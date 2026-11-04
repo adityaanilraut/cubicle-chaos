@@ -115,6 +115,59 @@ func _run() -> void:
 	player.combat.tick(0.2)
 	check(worker.combat.health == 100.0, "A strike cannot hit someone who moved behind the attacker")
 
+	# At close range the target's body can overlap the strike arc even if its
+	# center moves outside it during the windup.
+	for attack in ["punch", "kick"]:
+		reset_fighters(0.55)
+		await settle()
+		check(player.try_attack(attack), "Close-range %s starts" % attack)
+		worker.global_position = origin + Vector3(0.45, 0, 0.10)
+		await settle()
+		player.combat.tick(0.33 if attack == "kick" else 0.2)
+		check(worker.combat.health < 100.0, "Close-range %s hits the body at the edge of the arc" % attack)
+
+	reset_fighters(0.55)
+	worker.global_position = origin + Vector3(0.45, 0, 0.10)
+	await settle()
+	check(player.combat.find_target(1.2, true) == worker, "Close-range targeting uses the same body-aware strike arc")
+	for attack in ["punch", "kick"]:
+		reset_fighters(2.0)
+		await settle()
+		player.try_attack(attack)
+		player.combat.tick(0.32 if attack == "kick" else 0.19)
+		check(worker.combat.health == 100.0, "A %s can miss initially during its active pose" % attack)
+		worker.global_position = origin + Vector3(0, 0, 0.9)
+		await settle()
+		player.combat.tick(0.02)
+		check(worker.combat.health < 100.0, "A %s hits a target entering during its active pose" % attack)
+		var remaining_health := worker.combat.health
+		player.combat.tick(0.02)
+		check(worker.combat.health == remaining_health, "The active %s cannot hit twice" % attack)
+
+	reset_fighters(2.0)
+	await settle()
+	player.try_attack("punch")
+	worker.global_position = origin + Vector3(0, 0, 0.95)
+	await settle()
+	player.combat.tick(0.2)
+	check(worker.combat.health == 82.0, "A person entering reach during windup can be struck")
+
+	reset_fighters()
+	await settle()
+	var impacts_before := get_nodes_in_group("combat_impacts").size()
+	check(worker.combat.receive_prop_hit(10.0, 10.0, Vector3.FORWARD, player), "A prop can hit a standing worker")
+	check(get_nodes_in_group("combat_impacts").size() == impacts_before + 1, "A successful prop hit shows contact feedback")
+	check(not worker.combat.receive_prop_hit(10.0, 10.0, Vector3.FORWARD, player), "Protection prevents repeated prop damage")
+	check(get_nodes_in_group("combat_impacts").size() == impacts_before + 1, "A protected prop hit does not show a false impact")
+
+	reset_fighters()
+	await settle()
+	player.try_attack("punch")
+	player.combat.tick(0.45)
+	check(player.combat.request_fight("kick"), "A late attack input is buffered")
+	player.combat.tick(0.4)
+	check(player.combat.phase == OfficeCombat.Phase.ATTACK and player.combat.move_id == "front_kick", "A buffered attack survives a long recovery frame")
+
 	reset_fighters()
 	await settle()
 	player.try_attack("punch")

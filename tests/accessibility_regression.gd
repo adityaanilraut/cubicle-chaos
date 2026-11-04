@@ -53,6 +53,9 @@ func _run() -> void:
 	check(OfficeInput.key_for("interact") == KEY_U, "Remapped interact key applies")
 	check(OfficeInput.matches(key_event(KEY_U), "interact"), "Remapped key matches its action")
 	check(not OfficeInput.action_ids().has("pause"), "Pause/Esc is not a remappable action")
+	for reserved in OfficeInput.RESERVED_KEYS:
+		OfficeInput.apply_bindings({"interact": reserved})
+		check(OfficeInput.key_for("interact") == KEY_F, "Fixed control %s cannot be assigned to interact" % OS.get_keycode_string(reserved))
 	OfficeInput.reset_bindings()
 	check(OfficeInput.key_for("interact") == KEY_F, "Reset restores default bindings")
 
@@ -108,7 +111,17 @@ func _run() -> void:
 	menu._capturing_action = "interact"
 	menu._input(key_event(KEY_ESCAPE))
 	check(OfficeInput.key_for("interact") == KEY_U, "Esc cancels capture without changing the binding")
+	menu._capturing_action = "interact"
+	menu._input(key_event(KEY_W))
+	check(OfficeInput.key_for("interact") == KEY_U, "A reserved key leaves the existing binding unchanged")
+	check(menu._binding_buttons["interact"].text == OfficeInput.key_name("interact"), "Rejected key restores the binding label")
 	menu.set_setting("bindings", {})
+	check(menu._binding_buttons["interact"].text == OfficeInput.key_name("interact"), "Reset controls updates the visible binding label")
+	await create_timer(0.75).timeout
+	menu._capturing_action = "interact"
+	menu.close_settings()
+	check(menu._capturing_action == "", "Leaving settings cancels pending key capture")
+	menu.show_settings()
 
 	# Remapping through Settings persists and drives matching.
 	menu.set_setting("bindings", {"interact": KEY_U})
@@ -122,6 +135,11 @@ func _run() -> void:
 			check(action.key == OfficeInput.key_name("interact"), "Action circles show the remapped key")
 	menu.set_setting("bindings", {})
 	OfficeInput.reset_bindings()
+	menu._clear_content()
+	menu._set_state(&"playing")
+	office.start_placing_catalog_item("chair_desk")
+	menu._input(key_event(KEY_ESCAPE))
+	check(office.edit_mode == office.EditMode.SELECT and menu.menu_state == &"playing" and not paused, "Escape cancels placement before opening the level menu")
 
 	# Restore the pre-existing settings file exactly.
 	if had_settings:

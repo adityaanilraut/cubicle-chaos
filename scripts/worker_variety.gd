@@ -65,6 +65,14 @@ func setup(p_worker: OfficeWorker, index: int) -> void:
 		var eye := _sphere(0.013, Color(0.08, 0.07, 0.07))
 		eye.position = Vector3(side * 0.036, 0.015, 0.098)
 		add_child(eye)
+		var ear := _sphere(0.025, variety["skin_tone"])
+		ear.scale = Vector3(0.65, 1.0, 0.7)
+		ear.position = Vector3(side * 0.108, 0.0, 0.0)
+		add_child(ear)
+		var brow := _sphere(0.018, hair_color)
+		brow.scale = Vector3(1.0, 0.22, 0.35)
+		brow.position = Vector3(side * 0.036, 0.043, 0.098)
+		add_child(brow)
 	if bool(variety["has_glasses"]):
 		for side in [-1.0, 1.0]:
 			var lens := MeshInstance3D.new()
@@ -80,6 +88,10 @@ func setup(p_worker: OfficeWorker, index: int) -> void:
 	var nose := _sphere(0.016, variety["skin_tone"])
 	nose.position = Vector3(0.0, -0.005, 0.105)
 	add_child(nose)
+	var mouth := _sphere(0.018, Color(0.35, 0.19, 0.17))
+	mouth.scale = Vector3(1.0, 0.18, 0.25)
+	mouth.position = Vector3(0.0, -0.042, 0.101)
+	add_child(mouth)
 	_appearance_scale = float(variety["height_scale"])
 	if _skeleton != null and _head_bone >= 0:
 		_skeleton.skeleton_updated.connect(_sync_head)

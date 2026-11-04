@@ -27,11 +27,18 @@ func sample_tip(skeleton: Skeleton3D) -> void:
 	if combat.phase != OfficeCombat.Phase.ATTACK: return
 	var move := combat.current_move()
 	if combat.phase_time < float(move.contact) * 0.4 or combat.phase_time > float(move.contact) + 0.09: return
+	if move.family == "bat" and combat.has_bat():
+		var tip := (combat.actor as OfficePlayer).held_prop.global_transform * Vector3(0, BaseballBat.LENGTH, 0)
+		_add_tip(tip, Color(1.0, 0.87, 0.52))
+		return
 	var bone := skeleton.find_bone("office_" + String(move.side) + ("Hand" if move.family == "punch" else "Foot"))
 	if bone < 0: return
 	var tip := skeleton.to_global(skeleton.get_bone_global_pose(bone).origin)
+	_add_tip(tip, Color(0.30, 0.82, 1.0) if move.family == "kick" else Color(1.0, 0.72, 0.28))
+
+func _add_tip(tip: Vector3, color: Color) -> void:
 	if not points.is_empty() and points.back().distance_squared_to(tip) < 0.0001: return
-	tint = Color(0.30, 0.82, 1.0) if move.family == "kick" else Color(1.0, 0.72, 0.28)
+	tint = color
 	points.append(tip)
 	ages.append(0.0)
 	if points.size() > MAX_POINTS:

@@ -6,6 +6,7 @@ var level := 1
 var unlocked := 1
 var done: Array[bool] = [false, false, false]
 var has_coffee := false
+var stat_baseline: Dictionary = {}
 var repair_time := 0.0
 var mouse_holding := false
 var server: Node3D
@@ -138,38 +139,42 @@ func set_level(value: int) -> void:
 			office.player.prop_handling.cancel_charge()
 		task_prop.queue_free()
 		task_prop = null
-	level = clampi(value, 1, 2)
+	office.spawn_player_at_entrance()
+	level = clampi(value, 1, 5)
 	done = [false, false, false]
 	has_coffee = false
 	repair_time = 0.0
 	mouse_holding = false
+	stat_baseline = office.player.equipment.stats.duplicate()
 	server.visible = level == 2
 	delivery_spot.visible = level == 1
 	if level == 1:
-		task_prop = office.spawn_prop("box", Vector3(-7.4, 0.05, 8.4))
-		_world_label(task_prop, "BOX", Vector3(0, 1.0, 0), Color.WHITE, 28)
+		_spawn_task_box()
 	_refresh()
 
+func _spawn_task_box() -> void:
+	task_prop = office.spawn_prop("box", Vector3(-7.4, 0.05, 8.4))
+	_world_label(task_prop, "BOX", Vector3(0, 1.0, 0), Color.WHITE, 28)
+
 func _refresh() -> void:
-	var tasks: Array = ["Drink coffee", "Talk to a coworker", "Move the box to its spot"] if level == 1 else ["Fix the server", "Get coffee", "Give coffee to a coworker"]
+	var tasks: Array = LevelObjectives.TASKS[level - 1]
 	var completed := 0
 	for task_done in done:
 		if task_done: completed += 1
 	checklist.text = "LEVEL %d  /  5\nTODAY'S TASKS   %d / 3\n" % [level, completed]
 	for i in range(3): checklist.text += "\n%s  %s" % ["✓" if done[i] else "○", tasks[i]]
 	marker.visible = level == 2 and not done[0]
-	notice.text = "Level complete! Open the menu for Level 2." if level == 1 and done.all(func(v): return v) else ("All tasks complete!" if level == 2 and done.all(func(v): return v) else "")
-	if done.all(func(v): return v): unlocked = maxi(unlocked, mini(level + 1, 2))
+	notice.text = ("Level complete! Open the menu for Level %d." % (level + 1) if level < 5 else "All tasks complete!") if done.all(func(v): return v) else ""
+	if done.all(func(v): return v): unlocked = maxi(unlocked, mini(level + 1, 5))
 
 func _action_kind() -> String:
 	var p: OfficePlayer = office.player
-	if not p.gameplay_visible or p.busy > 0 or p.dialogue.is_open or p.equipment.is_active() or p.combat.is_busy() or p.seated or is_instance_valid(p.held_prop) or is_instance_valid(p.carried_cup): return ""
+	if not p.gameplay_visible or office.edit_mode != office.EditMode.SELECT or p.busy > 0 or p.dialogue.is_open or p.equipment.is_active() or p.combat.is_busy() or p.seated or is_instance_valid(p.held_prop) or is_instance_valid(p.carried_cup) or is_instance_valid(p.grabbed_furniture): return ""
 	if level == 2 and not done[0] and p.global_position.distance_to(server.global_position) < 2.0: return "repair"
-	if level == 2 and has_coffee and not done[2] and p.nearby is OfficeWorker and p._can_reach_interaction(p.nearby): return "give"
-	for item in get_tree().get_nodes_in_group("furniture"):
-		if item is FurnitureItem and item.item_id == "coffee_station" and p._can_reach_interaction(item):
-			if level == 1 and not done[0]: return "drink"
-			if level == 2 and not done[1]: return "coffee"
+	if level == 2 and has_coffee and not done[2] and is_instance_valid(p.nearby) and p.nearby is OfficeWorker and p._can_reach_interaction(p.nearby): return "give"
+	if is_instance_valid(p.nearby) and p.nearby is FurnitureItem and p.nearby.item_id == "coffee_station" and p._can_reach_interaction(p.nearby):
+		if level == 1 and not done[0]: return "drink"
+		if level == 2 and not done[1]: return "coffee"
 	return ""
 
 func perform_action() -> bool:
@@ -200,10 +205,21 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(office.player): return
 	var p: OfficePlayer = office.player
 	var playing: bool = p.gameplay_visible
+	if playing and level == 1 and not done[2] and (not is_instance_valid(task_prop) or task_prop.is_queued_for_deletion()):
+		_spawn_task_box()
+	if playing and level >= 3:
+		var changed := false
+		for i in range(3):
+			var key: String = LevelObjectives.STAT_KEYS[level - 1][i]
+			if not done[i] and int(p.equipment.stats.get(key, 0)) > int(stat_baseline.get(key, 0)):
+				done[i] = true
+				changed = true
+		if changed: _refresh()
 	panel.visible = playing
 	notice.visible = playing
 	var kind := _action_kind() if playing else ""
-	action_button.visible = kind != ""
+	# Other level actions use the same circular controls as regular interactions.
+	action_button.visible = kind == "repair"
 	if kind == "repair":
 		if mouse_holding or OfficeInput.is_pressed("interact"):
 			repair_time += delta / maxf(Engine.time_scale, 0.1)

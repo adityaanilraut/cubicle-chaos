@@ -3,6 +3,7 @@ extends Node3D
 @export var start_in_menu := true
 var levels: OfficeLevels
 var game_menu: OfficeMenus
+var life: OfficeLife
 var intro: OfficeIntro
 var hud: CanvasLayer
 var editor_root: Control
@@ -103,12 +104,12 @@ func _ready() -> void:
 	_setup_ui()
 	_request_navmesh_rebake()
 
-	# Spawn 6 initial workers after first frame so NavigationMesh is baked & ready
+	# Spawn coworkers after the first navigation bake has been requested.
 	await get_tree().process_frame
 	var initial_spawns: Array[Vector3] = [
 		Vector3(-1.0, 0.0, -4.6), # Alex near Executive Office
-		Vector3(-8.5, 0.0, 2.6),  # Maya in Open Floor West
-		Vector3(-4.5, 0.0, 2.6),  # Jordan in Open Floor Center
+		Vector3(16.0, 0.0, 6.0),  # Maya welcomes arrivals with Jordan
+		Vector3(17.4, 0.0, 6.0), # Jordan in the lobby
 		Vector3(6.8, 0.0, -5.0),  # Sam in Break Room & Kitchen
 		Vector3(-8.5, 0.0, 7.2),  # Taylor in Open Floor South
 		Vector3(7.6, 0.0, 2.2),   # Morgan in Lounge Area
@@ -117,6 +118,9 @@ func _ready() -> void:
 		spawn_worker(sp)
 	_spawn_player_and_cup()
 	_spawn_props()
+	life = OfficeLife.new()
+	add_child(life)
+	life.setup(self)
 	_refresh_ui()
 	levels = OfficeLevels.new()
 	add_child(levels)
@@ -137,6 +141,7 @@ func spawn_prop(prop_id: String, world_pos: Vector3) -> PhysicsProp:
 
 func _spawn_props() -> void:
 	var spawns: Array = [
+		["baseball_bat", Vector3(13.5, 0.05, 7.8)],
 		["book", Vector3(-6.5, 0.05, 1.2)],
 		["box", Vector3(4.8, 0.05, -3.4)],
 		["plant", Vector3(-3.2, 0.05, 5.8)],
@@ -185,7 +190,7 @@ func save_shift() -> bool:
 func load_shift() -> bool:
 	var ok := OfficeSave.load_game(self)
 	if is_instance_valid(player):
-		player.message.text = "Shift loaded." if ok else "No saved shift found."
+		player.message.text = "Shift loaded." if ok else "Could not load the saved shift."
 		if ok:
 			OfficeAudio.play_at(get_tree(), "ding")
 	return ok
@@ -194,7 +199,7 @@ func _spawn_player_and_cup() -> void:
 	player = OfficePlayer.new()
 	player.setup_player(self)
 	add_child(player)
-	player.global_position = Vector3(-7.5, 0.0, 4.5)
+	spawn_player_at_entrance()
 	iso_camera.follow_player = true
 	iso_camera.target_zoom = 12.0
 	var cup := Node3D.new()
@@ -211,6 +216,29 @@ func _spawn_player_and_cup() -> void:
 	cup.add_to_group("player_interactable")
 	add_child(cup)
 	cup.global_position = Vector3(9.2, 0.0, -7.3)
+
+func spawn_player_at_entrance() -> void:
+	player.dialogue.close()
+	player.equipment.cancel("")
+	player.mouse_controls.cancel()
+	player.release_furniture()
+	player.prop_handling.cancel_charge()
+	player.combat.reset()
+	if is_instance_valid(player.sitting_chair) and player.sitting_chair.reserved_by == player:
+		player.sitting_chair.reserved_by = null
+	player.seated = false
+	player.standing_up = false
+	player.sitting_chair = null
+	player.busy = 0.0
+	player.nav_agent.velocity = Vector3.ZERO
+	player.collision_shape.set_deferred("disabled", false)
+	player.play_anim("idle")
+	player.global_position = OfficeArrival.PLAYER_SPAWN
+	player.rotation.y = -PI * 0.5
+	player.velocity = Vector3.ZERO
+	iso_camera.pan_offset = Vector3.ZERO
+	iso_camera.focus_on(player.global_position)
+	iso_camera.position = iso_camera.target_pos
 
 func _setup_environment_and_lights() -> void:
 	environment.setup_environment_and_lights()
@@ -565,13 +593,15 @@ func place_furniture_item(item_id: String, world_pos: Vector3, rot_y: float = 0.
 		_request_navmesh_rebake()
 	return item
 
-func spawn_worker(spawn_pos: Vector3 = Vector3.INF) -> OfficeWorker:
-	var idx := workers_container.get_child_count()
+func spawn_worker(spawn_pos: Vector3 = Vector3.INF, meeting_role: String = "", identity: Dictionary = {}) -> OfficeWorker:
+	var idx := int(identity.get("index", workers_container.get_child_count()))
 	var w_name: String = WORKER_NAMES[idx % WORKER_NAMES.size()]
 	if idx >= WORKER_NAMES.size():
 		w_name += " #" + str(idx + 1)
 
+	w_name = String(identity.get("name", w_name))
 	var worker := OfficeWorker.new()
+	worker.meeting_role = meeting_role
 	worker.setup(self, idx, w_name, idx)
 	workers_container.add_child(worker)
 
